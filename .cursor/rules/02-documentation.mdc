@@ -1,0 +1,77 @@
+---
+description: Documentation standards and Definition of Done requirements
+alwaysApply: true
+---
+
+# Documentation Standard
+
+Documentation is a first-class deliverable. Never stop after writing code alone.
+
+## Canonical Location
+
+All project docs live under `docs/`:
+
+```
+docs/
+  ROADMAP.md
+  PROJECT_MEMORY.md
+  CHANGELOG.md
+  ARCHITECTURE.md
+  architecture/          # ADRs
+    ADR-001-*.md
+    ...
+```
+
+Root `README.md` is the public entry point; it links to `docs/`.
+
+## Mandatory Workflow
+
+1. Review existing implementation and docs.
+2. Implement the change.
+3. Update documentation in the **same task**.
+4. Summarize what changed and why.
+
+## Per-File Update Rules
+
+### `docs/PROJECT_MEMORY.md` — always update
+
+Append a dated entry with: phase, objective, files changed, decisions, remaining work, next task. Never delete history.
+
+### `docs/CHANGELOG.md` — always update
+
+Follow [Keep a Changelog](https://keepachangelog.com/). Use `Added`, `Changed`, `Fixed`, `Removed` sections under `## [Unreleased]` or dated headings.
+
+### `docs/ROADMAP.md` — update when
+
+- A phase or sub-phase is completed
+- Current phase changes
+- New phases or milestones are added
+
+Do not rewrite completed history.
+
+### `docs/ARCHITECTURE.md` — update when
+
+- Folder structure, request flow, or service boundaries change
+- Database design or provider architecture changes
+- New middleware, routing, or integration points are added
+
+Keep Mermaid diagrams current.
+
+### ADRs — create when
+
+A significant architectural decision is made (technology choice, pattern adoption, boundary change).
+
+Location: `docs/architecture/ADR-NNN-short-title.md`
+
+Required sections: Status, Context, Decision, Consequences, Alternatives Considered.
+
+## Pre-Finish Checklist
+
+- [ ] Code compiles / imports cleanly
+- [ ] PROJECT_MEMORY updated
+- [ ] CHANGELOG updated
+- [ ] ROADMAP updated (if phase changed)
+- [ ] ARCHITECTURE updated (if structure changed)
+- [ ] ADR created (if decision made)
+
+If documentation is missing, the task is **not complete**.

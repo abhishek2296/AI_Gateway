@@ -1,0 +1,54 @@
+---
+description: Core engineering principles for all implementation work
+alwaysApply: true
+---
+
+# Engineering Principles
+
+## Production First
+
+- Write code that is deployable, observable, and maintainable from day one.
+- Prefer explicit configuration over magic defaults.
+- Handle failure paths — connection errors, timeouts, invalid input.
+
+## Extend, Don't Rewrite
+
+- Reuse existing modules (`database.py`, `session.py`, `BaseLLMService`, `APIResponse`).
+- Do not introduce parallel patterns (e.g., a second declarative base or response envelope).
+- Modify architecture only when a requirement cannot be met otherwise.
+
+## Learn → Review → Implement
+
+1. Read existing code and docs before writing.
+2. Match naming, typing, and layer boundaries already in the repo.
+3. Keep diffs focused — no drive-by refactors.
+
+## Layer Boundaries
+
+| Layer | Responsibility | Must NOT |
+|-------|---------------|----------|
+| `api/routes/` | HTTP mapping, status codes | Call DB or LLM clients directly |
+| `services/` | Business logic, provider calls | Import FastAPI request objects |
+| `schemas/` | Validation and API contracts | Contain business logic |
+| `models/` | ORM table definitions | Handle HTTP or provider I/O |
+| `core/` | Infrastructure (config, DB, logging) | Domain-specific logic |
+
+## Code Quality
+
+- Use type hints and SQLAlchemy 2.x `Mapped` / `mapped_column` for ORM.
+- Use module-level docstrings; comment only non-obvious intent.
+- Use structured logging (`logging.getLogger(__name__)`).
+- Return `APIResponse[T]` for success; use registered exception handlers for errors.
+
+## Definition of Done
+
+A task is complete only when:
+
+- [ ] Code runs without regressions
+- [ ] `docs/PROJECT_MEMORY.md` updated
+- [ ] `docs/CHANGELOG.md` updated
+- [ ] `docs/ROADMAP.md` updated if phase status changed
+- [ ] `docs/ARCHITECTURE.md` updated if structure or flow changed
+- [ ] New ADR created if an architectural decision was made
+
+See `02-documentation.mdc` for details.

@@ -1,0 +1,76 @@
+---
+description: Python and FastAPI backend conventions
+globs: backend/**/*.py
+alwaysApply: false
+---
+
+# Python Backend Conventions
+
+## Stack
+
+- Python 3.14+, managed with `uv`
+- FastAPI + Uvicorn (ASGI)
+- Pydantic v2 for schemas and settings
+- SQLAlchemy 2.x async ORM
+
+## Project Layout
+
+```
+backend/src/
+  main.py              # App factory, middleware, router registration
+  api/routes/          # Thin HTTP handlers
+  api/dependencies.py  # FastAPI DI wiring
+  services/            # Business logic
+  schemas/             # Pydantic DTOs
+  models/              # SQLAlchemy ORM
+  core/                # Config, DB, logging, lifespan, exceptions
+  middleware/          # Cross-cutting HTTP concerns
+```
+
+## Patterns
+
+### Routes stay thin
+
+```python
+@router.post("", response_model=APIResponse[ChatResponse])
+async def chat(request: ChatRequest, service: ChatService = Depends(get_chat_service)):
+    result = await service.chat(request.message)
+    return APIResponse(data=ChatResponse(**result))
+```
+
+### Dependency injection
+
+Wire services in `api/dependencies.py`. Never instantiate providers inside route handlers.
+
+### Settings
+
+Use `src.core.config.settings` (pydantic-settings). Add new env vars to `Settings` and `.env.example`.
+
+### Async
+
+All route handlers and DB/LLM I/O must be `async`. Use `AsyncSession` from `core/session.py`.
+
+### Response envelope
+
+Success: `APIResponse[T]` from `schemas/common.py`
+Errors: raise `HTTPException` subclasses; global handler formats `FailureResponse`.
+
+### Logging
+
+```python
+logger = logging.getLogger(__name__)
+```
+
+Do not print. Use structured log messages with context.
+
+## Imports
+
+- Absolute imports: `from src.services.chat_service import ChatService`
+- Models: `from src.models import Base, TimestampMixin`
+
+## Do Not
+
+- Add sync database calls
+- Put business logic in routes or schemas
+- Create a second `DeclarativeBase`
+- Hardcode provider-specific logic outside `services/` implementations

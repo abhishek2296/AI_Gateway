@@ -1,0 +1,62 @@
+---
+description: Database, ORM, and persistence layer conventions
+globs: backend/src/models/**/*.py,backend/src/core/database.py,backend/src/core/session.py
+alwaysApply: false
+---
+
+# Database Conventions
+
+## Infrastructure (already implemented)
+
+- `core/database.py` — async engine + `AsyncSessionLocal`
+- `core/session.py` — `get_session()` FastAPI dependency
+- `docker-compose.yml` — PostgreSQL 17
+
+Do not duplicate engine or session setup elsewhere.
+
+## ORM Foundation
+
+- **Single registry:** `models/base.py` → `Base(DeclarativeBase)`
+- **Re-export:** `core/base.py` imports from `models.base` (backward compat)
+- **Mixins:** `models/mixins.py` → `TimestampMixin`
+
+All entity models must inherit `Base`. Use `TimestampMixin` for audit columns.
+
+## SQLAlchemy 2.x Typed Style
+
+```python
+from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy import String
+from src.models import Base, TimestampMixin
+
+class Provider(Base, TimestampMixin):
+    __tablename__ = "providers"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    name: Mapped[str] = mapped_column(String(100), unique=True)
+```
+
+## Rules
+
+- Use `Mapped[T]` + `mapped_column()` — not legacy `Column()` without typing
+- Use `DateTime(timezone=True)` for timestamps (PostgreSQL `TIMESTAMPTZ`)
+- Define relationships with `relationship()` and explicit `back_populates`
+- No raw SQL in routes — use repository layer (Phase 3.6+)
+
+## Migrations
+
+Alembic is a dependency but not yet configured. When added:
+
+- One `MetaData` from `Base.metadata`
+- Autogenerate against models in `src/models/`
+- Never create tables manually outside migrations
+
+## Session Usage (future repositories)
+
+```python
+async def get_session() -> AsyncGenerator[AsyncSession, None]:
+    async with AsyncSessionLocal() as session:
+        yield session
+```
+
+Commit/rollback belongs in the service or unit-of-work layer, not in route handlers.

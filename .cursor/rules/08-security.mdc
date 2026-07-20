@@ -1,0 +1,55 @@
+---
+description: Security practices for the AI Gateway
+alwaysApply: true
+---
+
+# Security
+
+## Secrets Management
+
+- Never commit `.env`, API keys, or credentials
+- All secrets via environment variables (`Settings` in `core/config.py`)
+- `.env.example` shows variable names with placeholder values only
+- Rotate keys used in local development if accidentally exposed
+
+## Input Validation
+
+- All request bodies validated through Pydantic schemas in `schemas/`
+- Reject unexpected fields (`model_config` defaults are acceptable)
+- Validate message length and content limits before provider calls (add when routes mature)
+
+## Error Handling
+
+- Use custom `HTTPException` subclasses (`core/exceptions.py`)
+- Global handler returns generic messages — no stack traces or connection strings to clients
+- Log full exceptions server-side with `logger.exception()`
+
+## Authentication & Authorization (planned — Phase 8)
+
+Not yet implemented. When added:
+
+- API key or JWT validation middleware
+- Key storage in database (hashed), never plaintext
+- Rate limiting per key/tenant
+
+## Provider Security
+
+- Provider API keys loaded from env, never hardcoded
+- Timeouts enforced (`TIMEOUT` setting for Ollama; extend per provider)
+- TLS for all external provider calls (default for httpx/OpenAI SDKs)
+
+## Database
+
+- Use parameterized queries (SQLAlchemy ORM handles this)
+- Least-privilege DB user for application (`ai_app`, not superuser)
+- Do not enable `DB_ECHO=true` in production
+
+## HTTP Headers
+
+- `X-Request-ID` set for traceability (already implemented)
+- Add CORS, security headers, and HTTPS termination at reverse proxy in production (Phase 18)
+
+## Dependency Hygiene
+
+- Pin versions in `pyproject.toml` / `uv.lock`
+- Review new dependencies for license and maintenance status

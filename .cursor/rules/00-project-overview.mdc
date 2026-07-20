@@ -1,0 +1,54 @@
+---
+description: AI Gateway project identity, scope, and current status
+alwaysApply: true
+---
+
+# AI Gateway — Project Overview
+
+## What This Project Is
+
+A **production-grade AI Gateway** — a provider-agnostic HTTP API that routes AI workloads (chat, embeddings, vision, agents, RAG) to multiple LLM backends.
+
+## What This Project Is NOT
+
+- Not a chatbot UI
+- Not a coding assistant or IDE plugin
+- Not tied to a single LLM vendor
+
+## Current Status (v0.1.0)
+
+| Phase | Status |
+|-------|--------|
+| 1 — Project Foundation | Complete |
+| 2 — AI Gateway Core | Complete |
+| 3 — Persistence Layer | In progress (3.1–3.2.1 complete) |
+
+**Live endpoints:** `GET /`, `GET /health`, `POST /chat`
+
+**Default provider:** Ollama (`qwen3:8b`)
+
+## Repository Layout
+
+```
+backend/src/
+  api/          # Routes + FastAPI dependencies
+  core/         # Config, DB engine, logging, lifespan, exceptions
+  middleware/   # Request ID, response timing
+  models/       # SQLAlchemy ORM base + mixins
+  schemas/      # Pydantic request/response DTOs
+  services/     # Business logic + LLM provider implementations
+docs/           # Canonical project documentation
+```
+
+## Key References
+
+- Architecture: `docs/ARCHITECTURE.md`
+- Roadmap: `docs/ROADMAP.md`
+- Living memory: `docs/PROJECT_MEMORY.md`
+- ADRs: `docs/architecture/`
+
+## Before Implementing
+
+1. Read `docs/PROJECT_MEMORY.md` for current phase and decisions.
+2. Follow rules in `01-engineering-principles.mdc` and `05-ai-gateway-architecture.mdc`.
+3. Update documentation per `02-documentation.mdc` — it is part of Definition of Done.

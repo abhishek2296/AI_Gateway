@@ -1,0 +1,77 @@
+---
+description: AI Gateway architecture, provider abstraction, and extensibility rules
+alwaysApply: true
+---
+
+# AI Gateway Architecture
+
+## Core Concept
+
+The gateway sits between clients and LLM providers. Clients send standardized requests; the gateway selects a provider, executes the call, and returns a normalized response.
+
+```mermaid
+flowchart LR
+    Client --> Gateway[AI Gateway API]
+    Gateway --> Router[Provider Router]
+    Router --> Ollama[Ollama]
+    Router --> OpenAI[OpenAI]
+    Router --> Anthropic[Anthropic]
+    Router --> Others[Gemini / Azure / Bedrock]
+```
+
+## Provider Abstraction
+
+All providers implement `BaseLLMService` (`services/base_llm.py`):
+
+```python
+class BaseLLMService(ABC):
+    async def chat(self, message: str) -> ...: ...
+    async def check_connection(self) -> dict: ...
+```
+
+Current implementation: `OllamaService`. Future providers add a new class + registry entry — no route changes.
+
+## Target Provider Support
+
+| Provider | Status |
+|----------|--------|
+| Ollama | Implemented |
+| OpenAI | Planned |
+| Anthropic | Planned |
+| Gemini | Planned |
+| Azure OpenAI | Planned |
+| AWS Bedrock | Planned |
+
+Adding a provider should require: one service class, config vars, enum entry, and DI registration.
+
+## Layer Flow
+
+```
+HTTP Request
+  → Middleware (RequestID, Timing)
+  → Route (api/routes/)
+  → Service (services/)
+  → Provider (OllamaService, etc.)
+  → Normalized APIResponse
+```
+
+Routes never import provider SDKs directly.
+
+## Future Gateway Capabilities
+
+Designed to support (not yet built):
+
+- Model registry and routing engine
+- Streaming responses
+- Embeddings, vision, function calling
+- RAG (Qdrant), caching (Redis), agents, workflows
+- Authentication, rate limiting, observability
+
+## Naming
+
+- Use "AI Gateway" in docs, OpenAPI description, and user-facing text
+- Avoid "chatbot" or "coding assistant" — this is infrastructure, not an end-user product
+
+## Configuration
+
+Provider settings belong in `core/config.py` (or future provider-specific config modules). Secrets via environment variables only.

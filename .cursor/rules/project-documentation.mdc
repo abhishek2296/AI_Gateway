@@ -1,0 +1,8 @@
+---
+alwaysApply: true
+---
+# Documentation
+
+This rule is consolidated into `.cursor/rules/02-documentation.mdc`.
+
+All documentation standards, Definition of Done requirements, and per-file update rules are defined there. Follow that rule for every implementation task.

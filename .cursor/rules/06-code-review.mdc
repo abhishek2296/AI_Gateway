@@ -1,0 +1,54 @@
+---
+description: Code review checklist for AI Gateway changes
+alwaysApply: false
+---
+
+# Code Review Checklist
+
+Use before marking any task complete.
+
+## Architecture
+
+- [ ] Change respects layer boundaries (route → service → provider/DB)
+- [ ] No provider-specific logic leaked into routes or schemas
+- [ ] Existing modules extended rather than duplicated
+- [ ] Single `Base` metadata registry preserved
+
+## Python / FastAPI
+
+- [ ] Type hints on public functions and ORM fields
+- [ ] Async used for I/O-bound operations
+- [ ] Dependencies wired in `api/dependencies.py`
+- [ ] Responses use `APIResponse[T]` envelope
+- [ ] Errors use registered exception classes
+
+## Database (if applicable)
+
+- [ ] SQLAlchemy 2.x typed ORM style
+- [ ] `TimestampMixin` used where audit columns are needed
+- [ ] No table creation outside planned migration workflow
+- [ ] Session lifecycle handled correctly (no leaked connections)
+
+## Security (see `08-security.mdc`)
+
+- [ ] No secrets in code or committed files
+- [ ] Input validated via Pydantic schemas
+- [ ] Error messages do not leak internal details
+
+## Documentation (Definition of Done)
+
+- [ ] `docs/PROJECT_MEMORY.md` updated
+- [ ] `docs/CHANGELOG.md` updated
+- [ ] `docs/ROADMAP.md` updated if phase changed
+- [ ] `docs/ARCHITECTURE.md` updated if structure changed
+- [ ] ADR added if architectural decision made
+
+## Known Issues to Watch
+
+- Duplicate `get_llm_service()` in `dependencies.py`
+- Duplicate `ChatResponse` in `schemas/chat.py`
+- Stale `HealthResponse` stub in `schemas/common.py`
+- `main.py` OpenAPI description still says "AI Coding Assistant"
+- `LOG_LEVEL` setting unused in `core/logging.py`
+
+Fix these when touching the affected files; do not expand scope unnecessarily.
