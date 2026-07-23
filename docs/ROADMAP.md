@@ -63,7 +63,7 @@ Next: **Phase 4 — Multi-Provider Architecture**
 - Application lifespan (startup health check, shutdown DB cleanup)
 - Custom exceptions (`OllamaConnectionException`, `LLMResponseException`)
 
-### Phase 3 — Persistence Layer 🚧
+### Phase 3 — Persistence Layer ✅
 
 | Sub-phase | Status | Deliverables |
 |-----------|--------|-------------|
@@ -76,9 +76,10 @@ Next: **Phase 4 — Multi-Provider Architecture**
 | 3.7 Gateway Operational Models | ✅ | `APIKey`, `UsageRecord`, `ProviderHealth` + migration `b7e4d9f21c03` |
 | 3.8 Repository Pattern | ✅ | `BaseRepository` + 10 entity repositories |
 | 3.9 Unit of Work | ✅ | `BaseUnitOfWork`, `AsyncUnitOfWork` |
-| 3.10 Testing | ✅ | pytest + PostgreSQL integration suite (38 tests) |
+| 3.10 Testing | ✅ | pytest + PostgreSQL integration suite |
+| 3.11 Hardening | ✅ | Unique `request_id`, one default per provider (model/key) |
 
-### Phase 3 — Persistence Layer ✅
+### Phase 4 — Multi-Provider Architecture
 
 - Provider registry and factory
 - OpenAI, Anthropic, Gemini implementations
@@ -193,6 +194,7 @@ Next: **Phase 4 — Multi-Provider Architecture**
 | 3.8 — Repository Pattern | ✅ |
 | 3.9 — Unit of Work | ✅ |
 | 3.10 — Persistence Layer Testing | ✅ |
+| 3.11 — Persistence Hardening | ✅ |
 
 ---
 

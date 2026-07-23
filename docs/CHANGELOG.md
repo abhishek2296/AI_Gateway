@@ -16,6 +16,20 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## Phase 3.11 — Persistence Hardening (2026-07-23)
+
+### Added
+
+- Migration `c8f5e2a31d04` — unique `usage_records.request_id`, partial unique indexes for one default `AIModel` and `APIKey` per provider
+- Integration tests for duplicate `request_id` and duplicate default model/key rejection
+
+### Changed
+
+- `backend/src/models/usage_record.py`, `ai_model.py`, `api_key.py` — constraint definitions
+- `docs/ARCHITECTURE.md`, `docs/ROADMAP.md` — Phase 3 completion and constraint documentation
+
+---
+
 ## Phase 3.10 — Persistence Layer Testing (2026-07-23)
 
 ### Added

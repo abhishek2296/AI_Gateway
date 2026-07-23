@@ -6,7 +6,7 @@ from datetime import datetime
 from decimal import Decimal
 from typing import TYPE_CHECKING
 
-from sqlalchemy import DateTime, ForeignKey, Integer, Numeric, String, Text
+from sqlalchemy import DateTime, ForeignKey, Integer, Numeric, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from src.models.base import Base
@@ -23,11 +23,15 @@ class UsageRecord(Base, TimestampMixin):
     Immutable audit row for one gateway AI request.
 
     Tracks token counts, latency, and estimated cost for analytics and billing.
-    ``request_id`` correlates with the HTTP ``X-Request-ID`` middleware value.
+    ``request_id`` correlates with the HTTP ``X-Request-ID`` middleware value and
+    is unique to prevent duplicate billing rows on retries.
     ``chat_session_id`` is optional for stateless or non-session requests.
     """
 
     __tablename__ = "usage_records"
+    __table_args__ = (
+        UniqueConstraint("request_id", name="uq_usage_records_request_id"),
+    )
 
     id: Mapped[int] = mapped_column(primary_key=True)
 

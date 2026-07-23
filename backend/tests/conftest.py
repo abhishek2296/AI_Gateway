@@ -24,7 +24,7 @@ from src.core.config import get_settings
 from src.models.base import Base
 from src.unit_of_work import AsyncUnitOfWork
 
-ALEMBIC_HEAD = "b7e4d9f21c03"
+ALEMBIC_HEAD = "c8f5e2a31d04"
 BACKEND_ROOT = os.path.dirname(os.path.dirname(__file__))
 
 APPLICATION_TABLES = sorted(Base.metadata.tables.keys())

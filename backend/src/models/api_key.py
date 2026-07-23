@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import TYPE_CHECKING
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, String, UniqueConstraint, false, true
+from sqlalchemy import Boolean, DateTime, ForeignKey, Index, String, UniqueConstraint, false, text, true
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from src.models.base import Base
@@ -22,11 +22,18 @@ class APIKey(Base, TimestampMixin):
     ``api_key_env`` stores the **environment variable name** (e.g.
     ``OPENAI_API_KEY``), never the secret value. ``key_identifier`` is a
     non-secret label for admin UI (e.g. ``prod-primary``, ``last4:…8f2a``).
+    At most one row per provider may set ``is_default=True``.
     """
 
     __tablename__ = "api_keys"
     __table_args__ = (
         UniqueConstraint("provider_id", "name", name="uq_api_keys_provider_id_name"),
+        Index(
+            "uq_api_keys_one_default_per_provider",
+            "provider_id",
+            unique=True,
+            postgresql_where=text("is_default IS TRUE"),
+        ),
     )
 
     id: Mapped[int] = mapped_column(primary_key=True)

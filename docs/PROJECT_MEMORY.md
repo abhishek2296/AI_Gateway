@@ -39,7 +39,8 @@ backend/
 │   ├── env.py
 │   └── versions/
 │       ├── 20260723_2108_initial_schema.py
-│       └── 20260723_2200_gateway_operational_models.py
+│       ├── 20260723_2200_gateway_operational_models.py
+│       └── 20260723_2345_phase3_hardening_constraints.py
 └── src/models/
     ├── base.py
     ...
@@ -54,7 +55,7 @@ backend/
     └── integration/
 ```
 
-**10 ORM entities** + **11 repository classes** + **Unit of Work** + **38 integration tests**.
+**10 ORM entities** + **11 repository classes** + **Unit of Work** + **41 integration tests**.
 
 ---
 
@@ -73,7 +74,8 @@ backend/
 | 3.7 — Gateway Operational Models | `APIKey`, `UsageRecord`, `ProviderHealth` + migration `b7e4d9f21c03` |
 | 3.8 — Repository Pattern | `BaseRepository` + 10 entity repositories |
 | 3.9 — Unit of Work | `BaseUnitOfWork`, `AsyncUnitOfWork` |
-| 3.10 — Persistence Layer Testing | pytest suite, 38 integration tests |
+| 3.10 — Persistence Layer Testing | pytest suite, 41 integration tests |
+| 3.11 — Persistence Hardening | Unique `request_id`, one default model/key per provider |
 
 ---
 
@@ -90,6 +92,29 @@ None — Phase 3 complete.
 ---
 
 ## Memory Log
+
+### 2026-07-23 — Phase 3.11 Persistence Hardening
+
+**Phase:** 3.11
+
+**Objective:** Final Phase 3 schema hardening before Phase 4.
+
+**Files created:**
+- `backend/alembic/versions/20260723_2345_phase3_hardening_constraints.py` (revision `c8f5e2a31d04`)
+
+**Files modified:**
+- `backend/src/models/usage_record.py`, `ai_model.py`, `api_key.py`
+- `backend/tests/conftest.py`, `backend/tests/integration/test_orm_models.py`
+- `docs/ARCHITECTURE.md`, `docs/ROADMAP.md`, `CHANGELOG.md`, `PROJECT_MEMORY.md`
+
+**Constraints added:**
+- `uq_usage_records_request_id` — prevents duplicate billing rows
+- `uq_ai_models_one_default_per_provider` — partial unique on `(provider_id) WHERE is_default`
+- `uq_api_keys_one_default_per_provider` — partial unique on `(provider_id) WHERE is_default`
+
+**Verification:** Alembic upgrade/downgrade; full pytest suite (41 passed).
+
+**Next task:** Phase 4 — Multi-Provider Architecture.
 
 ### 2026-07-23 — Phase 3.10 Persistence Layer Testing
 

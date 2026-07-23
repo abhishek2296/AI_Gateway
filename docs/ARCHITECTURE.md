@@ -284,13 +284,14 @@ erDiagram
 - **UsageRecord** optionally links **ChatSession** (`SET NULL` on session delete)
 - **UsageRecord** → **Provider** / **AIModel** use `RESTRICT` (preserve billing history)
 - **PromptTemplate** is standalone (catalog); unique `(name, version)`
-- **APIKey** unique `(provider_id, name)`; secrets via `api_key_env` only
+- **APIKey** unique `(provider_id, name)`; one default key per provider (partial unique index); secrets via `api_key_env` only
+- **UsageRecord** unique `request_id`; billing audit with RESTRICT on provider/model delete
 - FKs use `ON DELETE CASCADE` unless noted; 1:1 sides use unique FK + `uselist=False`
-- Unique `(provider_id, model_name)` on `ai_models`
+- Unique `(provider_id, model_name)` on `ai_models`; one default model per provider (partial unique index)
 - Relationships use `lazy="selectin"` for async safety
 - ORM attr `extra_metadata` maps to DB column `metadata` on sessions and messages
 
-**ORM complete (10 tables).** Repository layer (Phase 3.8) and Unit of Work (Phase 3.9) implemented. Next: testing.
+**Phase 3 complete (10 tables).** Repository layer, Unit of Work, integration tests, and schema hardening are in place. Next: Phase 4 — Multi-Provider Architecture.
 
 ### Repository Layer
 
@@ -427,7 +428,8 @@ backend/
     ├── README
     └── versions/
         ├── 20260723_2108_initial_schema.py          # a3f6c2d18e01
-        └── 20260723_2200_gateway_operational_models.py  # b7e4d9f21c03
+        ├── 20260723_2200_gateway_operational_models.py  # b7e4d9f21c03
+        └── 20260723_2345_phase3_hardening_constraints.py  # c8f5e2a31d04
 ```
 
 ### Migrations
@@ -436,6 +438,7 @@ backend/
 |----------|-------------|
 | `a3f6c2d18e01` | Initial schema — 7 catalog/conversation tables |
 | `b7e4d9f21c03` | Operational models — `api_keys`, `usage_records`, `provider_health` |
+| `c8f5e2a31d04` | Hardening — unique `request_id`, one default model/key per provider |
 
 Head revision creates **10 application tables** total.
 

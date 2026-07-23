@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from sqlalchemy import Boolean, ForeignKey, Integer, String, Text, UniqueConstraint, false, true
+from sqlalchemy import Boolean, ForeignKey, Index, Integer, String, Text, UniqueConstraint, false, text, true
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from src.models.base import Base
@@ -26,6 +26,7 @@ class AIModel(Base, TimestampMixin):
 
     ``model_name`` is the provider-native id (e.g. ``qwen3:8b``, ``gpt-4o``).
     Uniqueness is scoped per provider so different backends may share names.
+    At most one row per provider may set ``is_default=True``.
     """
 
     __tablename__ = "ai_models"
@@ -34,6 +35,12 @@ class AIModel(Base, TimestampMixin):
             "provider_id",
             "model_name",
             name="uq_ai_models_provider_id_model_name",
+        ),
+        Index(
+            "uq_ai_models_one_default_per_provider",
+            "provider_id",
+            unique=True,
+            postgresql_where=text("is_default IS TRUE"),
         ),
     )
 

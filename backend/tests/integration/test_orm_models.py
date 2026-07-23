@@ -264,3 +264,73 @@ async def test_default_boolean_values(db_session: AsyncSession) -> None:
     )
     assert provider.is_active is True
     assert provider.is_local is False
+
+
+@pytest.mark.asyncio
+async def test_usage_record_unique_request_id(db_session: AsyncSession) -> None:
+    provider = await ProviderRepository(db_session).create(make_provider(name="usage-unique-provider"))
+    from src.repositories.ai_model_repository import AIModelRepository
+    from src.repositories.usage_record_repository import UsageRecordRepository
+
+    model = await AIModelRepository(db_session).create(make_ai_model(provider_id=provider.id))
+    usage_repo = UsageRecordRepository(db_session)
+    await usage_repo.create(
+        make_usage_record(
+            provider_id=provider.id,
+            ai_model_id=model.id,
+            request_id="unique-req-001",
+        ),
+    )
+
+    await expect_integrity_error(
+        db_session,
+        lambda: usage_repo.create(
+            make_usage_record(
+                provider_id=provider.id,
+                ai_model_id=model.id,
+                request_id="unique-req-001",
+            ),
+        ),
+    )
+
+
+@pytest.mark.asyncio
+async def test_one_default_ai_model_per_provider(db_session: AsyncSession) -> None:
+    provider = await ProviderRepository(db_session).create(make_provider(name="default-model-provider"))
+    from src.repositories.ai_model_repository import AIModelRepository
+
+    model_repo = AIModelRepository(db_session)
+    await model_repo.create(
+        make_ai_model(provider_id=provider.id, model_name="default-model", is_default=True),
+    )
+    await model_repo.create(
+        make_ai_model(provider_id=provider.id, model_name="secondary-model", is_default=False),
+    )
+
+    await expect_integrity_error(
+        db_session,
+        lambda: model_repo.create(
+            make_ai_model(provider_id=provider.id, model_name="other-default", is_default=True),
+        ),
+    )
+
+
+@pytest.mark.asyncio
+async def test_one_default_api_key_per_provider(db_session: AsyncSession) -> None:
+    provider = await ProviderRepository(db_session).create(make_provider(name="default-key-provider"))
+    from src.repositories.api_key_repository import APIKeyRepository
+
+    key_repo = APIKeyRepository(db_session)
+    await key_repo.create(
+        make_api_key(provider_id=provider.id, name="primary", is_default=True),
+    )
+    await key_repo.create(
+        make_api_key(provider_id=provider.id, name="secondary", is_default=False),
+    )
+
+    await expect_integrity_error(
+        db_session,
+        lambda: key_repo.create(
+            make_api_key(provider_id=provider.id, name="other-default", is_default=True),
+        ),
+    )
