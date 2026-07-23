@@ -12,7 +12,11 @@ from src.models.mixins import TimestampMixin
 
 if TYPE_CHECKING:
     from src.models.ai_model import AIModel
+    from src.models.api_key import APIKey
+    from src.models.chat_session import ChatSession
     from src.models.provider_configuration import ProviderConfiguration
+    from src.models.provider_health import ProviderHealth
+    from src.models.usage_record import UsageRecord
 
 
 class Provider(Base, TimestampMixin):
@@ -98,6 +102,29 @@ class Provider(Base, TimestampMixin):
         lazy="selectin",
         uselist=False,
         cascade="all, delete-orphan",
+    )
+    chat_sessions: Mapped[list[ChatSession]] = relationship(
+        "ChatSession",
+        back_populates="provider",
+        lazy="selectin",
+    )
+    api_keys: Mapped[list[APIKey]] = relationship(
+        "APIKey",
+        back_populates="provider",
+        lazy="selectin",
+        cascade="all, delete-orphan",
+    )
+    usage_records: Mapped[list[UsageRecord]] = relationship(
+        "UsageRecord",
+        back_populates="provider",
+        lazy="selectin",
+    )
+    health_checks: Mapped[list[ProviderHealth]] = relationship(
+        "ProviderHealth",
+        back_populates="provider",
+        lazy="selectin",
+        cascade="all, delete-orphan",
+        order_by="ProviderHealth.checked_at",
     )
 
     def __repr__(self) -> str:

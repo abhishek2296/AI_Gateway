@@ -6,52 +6,50 @@ alwaysApply: false
 
 # Testing Standards
 
-## Current State
-
-No automated test suite exists yet. Manual verification via `backend/test.py` (Ollama smoke test) and HTTP calls to `/health` and `/chat`.
-
-Testing infrastructure is planned for Phase 3 (Persistence Layer).
-
-## Target Stack (future)
+## Stack
 
 - **pytest** + **pytest-asyncio** for async tests
-- **httpx.AsyncClient** with FastAPI `TestClient` / `ASGITransport` for API tests
-- Test database (separate PostgreSQL or transactional rollback)
+- **PostgreSQL** via `TEST_DATABASE_URL` (never SQLite for persistence tests)
+- **httpx.AsyncClient** with `ASGITransport` for future API tests
 - Provider mocks — never call real Ollama/OpenAI in unit tests
 
-## Test Layers
-
-| Layer | What to test | How |
-|-------|-------------|-----|
-| Unit | Services, mixins, utilities | Direct async calls with mocks |
-| Integration | DB repositories, migrations | Test DB + real SQLAlchemy |
-| API | Routes, middleware, error format | httpx against ASGI app |
-
-## Conventions (when implemented)
+## Layout
 
 ```
 backend/tests/
-  unit/
-  integration/
-  api/
   conftest.py
+  factories.py
+  helpers.py
+  integration/
+    test_alembic.py
+    test_orm_models.py
+    test_repositories.py
+    test_unit_of_work.py
+  unit/          # future service unit tests
+  api/           # future route tests
 ```
 
-- Name files `test_<module>.py`
-- Use fixtures for `AsyncSession`, mocked `BaseLLMService`
-- Assert `APIResponse` shape: `{ success, data }` or `{ success, error }`
+## Conventions
 
-## Minimum Coverage Expectations
+- Name files `test_<module>.py`
+- Mark DB tests `@pytest.mark.integration`
+- Use `db_session` fixture for rollback-isolated tests
+- Use `committed_session` when verifying cross-session commit behavior
+- Use `expect_integrity_error()` helper after constraint violation tests
+- Assert `APIResponse` shape in API tests: `{ success, data }` or `{ success, error }`
+
+## Coverage Expectations
 
 - Every new service method: unit test with success and failure paths
 - Every new route: API test for 200 and primary error codes
 - Every new ORM model: integration test for CRUD via repository
 
-## Running (future)
+## Running
 
 ```bash
+docker compose up -d
 cd backend
 uv run pytest
 ```
 
-Until pytest is configured, document manual test steps in PR/commit summaries.
+Requires `TEST_DATABASE_URL` (see `.env.example`). Test database is created automatically if missing.

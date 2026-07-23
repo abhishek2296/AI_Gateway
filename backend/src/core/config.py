@@ -27,6 +27,7 @@ class Settings(BaseSettings):
 
     # Database
     DATABASE_URL: str
+    TEST_DATABASE_URL: str | None = None
     DB_POOL_SIZE: int = 5
     DB_MAX_OVERFLOW: int = 10
     DB_ECHO: bool = False

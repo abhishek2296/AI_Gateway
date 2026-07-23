@@ -19,7 +19,7 @@ The gateway is **infrastructure**, not a chatbot or coding assistant.
 | Milestone | Target Capability |
 |-----------|-------------------|
 | M1 — Gateway Core | Chat + health via first provider | ✅ |
-| M2 — Persistence | PostgreSQL, ORM, migrations, repositories | 🚧 |
+| M2 — Persistence | PostgreSQL, ORM, migrations, repositories | ✅ |
 | M3 — Multi-Provider | OpenAI, Anthropic, Gemini, Azure, Bedrock | Planned |
 | M4 — Routing & Streaming | Model registry, intelligent routing, SSE | Planned |
 | M5 — Enterprise | Auth, rate limits, observability, K8s | Planned |
@@ -28,11 +28,11 @@ The gateway is **infrastructure**, not a chatbot or coding assistant.
 
 ## Current Phase
 
-**Phase 3 — Persistence Layer** (in progress)
+**Phase 3 — Persistence Layer** (complete)
 
-Completed: **3.4 — Provider & Model Configuration**
+Completed: **3.10 — Persistence Layer Testing**
 
-Next: remaining domain entities (ChatSession, Message, …) or **3.5 — Alembic**
+Next: **Phase 4 — Multi-Provider Architecture**
 
 ---
 
@@ -71,13 +71,14 @@ Next: remaining domain entities (ChatSession, Message, …) or **3.5 — Alembic
 | 3.2.1 ORM Foundation | ✅ | `Base`, `TimestampMixin`, `models/__init__.py` |
 | 3.3 Core Domain Models | ✅ | `Provider`, `AIModel` (originally `Model`) + relationship |
 | 3.4 Provider & Model Configuration | ✅ | Refactors, `ProviderConfiguration`, `AIModelConfiguration` |
-| 3.4.x Remaining Domain Models | Planned | ChatSession, Message, PromptTemplate, APIKey |
-| 3.5 Alembic | Planned | Migration config, initial schema |
-| 3.6 Repository Pattern | Planned | Data access layer per entity |
-| 3.7 Unit of Work | Planned | Transaction boundary management |
-| 3.8 Testing | Planned | pytest, async fixtures, API + DB tests |
+| 3.5 Conversation Domain Models | ✅ | `ChatSession`, `Message`, `PromptTemplate` |
+| 3.6 Alembic | ✅ | Async env, initial migration (`a3f6c2d18e01`) |
+| 3.7 Gateway Operational Models | ✅ | `APIKey`, `UsageRecord`, `ProviderHealth` + migration `b7e4d9f21c03` |
+| 3.8 Repository Pattern | ✅ | `BaseRepository` + 10 entity repositories |
+| 3.9 Unit of Work | ✅ | `BaseUnitOfWork`, `AsyncUnitOfWork` |
+| 3.10 Testing | ✅ | pytest + PostgreSQL integration suite (38 tests) |
 
-### Phase 4 — Multi-Provider Architecture
+### Phase 3 — Persistence Layer ✅
 
 - Provider registry and factory
 - OpenAI, Anthropic, Gemini implementations
@@ -186,11 +187,17 @@ Next: remaining domain entities (ChatSession, Message, …) or **3.5 — Alembic
 | 3.2.1 — ORM Foundation | ✅ |
 | 3.3 — Core Domain Models (Provider, AIModel) | ✅ |
 | 3.4 — Provider & Model Configuration | ✅ |
+| 3.5 — Conversation Domain Models | ✅ |
+| 3.6 — Alembic Migration Infrastructure | ✅ |
+| 3.7 — Gateway Operational Models | ✅ |
+| 3.8 — Repository Pattern | ✅ |
+| 3.9 — Unit of Work | ✅ |
+| 3.10 — Persistence Layer Testing | ✅ |
 
 ---
 
 ## Upcoming (Next 3 Tasks)
 
-1. **3.4.x** — Remaining domain ORM models (ChatSession, Message, …)
-2. **3.5** — Configure Alembic and initial migration
-3. **3.6** — Repository pattern
+1. **Phase 4** — Multi-provider architecture
+2. **Phase 5** — Model registry
+3. **Phase 6** — Intelligent routing

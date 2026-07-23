@@ -1,0 +1,33 @@
+# Alembic Migrations
+
+Generic single-database configuration for the AI Gateway backend.
+
+Run all commands from `backend/`:
+
+```bash
+cd backend
+uv run python -m alembic upgrade head
+```
+
+## Prerequisites
+
+1. PostgreSQL running (`docker compose up -d` from project root)
+2. `.env` at project root with `DATABASE_URL` matching Docker credentials (copy from `.env.example`)
+
+## Common commands
+
+| Command | Purpose |
+|---------|---------|
+| `uv run python -m alembic upgrade head` | Apply all migrations |
+| `uv run python -m alembic downgrade -1` | Roll back one revision |
+| `uv run python -m alembic downgrade base` | Drop all application tables |
+| `uv run python -m alembic current` | Show applied revision |
+| `uv run python -m alembic history` | List revision chain |
+| `uv run python -m alembic revision --autogenerate -m "describe change"` | Generate migration from model changes |
+| `uv run python -m alembic upgrade head --sql` | Preview SQL without applying |
+
+## Notes
+
+- Uses async `postgresql+asyncpg` via `alembic/env.py`
+- Metadata source: `src.models.Base` (all models imported via `src.models`)
+- Initial migration: `a3f6c2d18e01` — creates 7 domain tables

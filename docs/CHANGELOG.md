@@ -16,6 +16,113 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## Phase 3.10 — Persistence Layer Testing (2026-07-23)
+
+### Added
+
+- `backend/tests/` — pytest integration suite (38 tests) against PostgreSQL
+- `conftest.py` — test DB creation, Alembic setup, transactional isolation fixtures
+- `factories.py`, `helpers.py` — entity builders and IntegrityError helper
+- Integration tests: Alembic, ORM models, all repositories, Unit of Work
+- Dev dependencies: `pytest`, `pytest-asyncio` in `[dependency-groups] dev`
+- `TEST_DATABASE_URL` setting in `core/config.py` and `.env.example`
+
+### Changed
+
+- `backend/pyproject.toml` — pytest configuration
+- `docs/ARCHITECTURE.md` — testing section
+- `.cursor/rules/07-testing.mdc` — updated from planned to implemented
+
+---
+
+## Phase 3.9 — Unit of Work (2026-07-23)
+
+### Added
+
+- `backend/src/unit_of_work/base.py` — `BaseUnitOfWork` ABC with async context manager
+- `backend/src/unit_of_work/unit_of_work.py` — `AsyncUnitOfWork` with all 10 repository properties
+- [ADR-013](architecture/ADR-013-unit-of-work-pattern.md)
+
+### Changed
+
+- `backend/src/repositories/base.py` — docstring references UoW for transaction ownership
+- `docs/ARCHITECTURE.md` — Unit of Work section, layer boundaries
+- `.cursor/rules/04-database.mdc` — UoW transaction conventions
+
+---
+
+## Phase 3.8 — Repository Pattern (2026-07-23)
+
+### Added
+
+- `backend/src/repositories/base.py` — `BaseRepository[ModelT]` with async CRUD, pagination, filtering, ordering
+- Entity repositories for all 10 ORM models (`ProviderRepository` through `ProviderHealthRepository`)
+- [ADR-012](architecture/ADR-012-repository-pattern.md)
+
+### Changed
+
+- `docs/ARCHITECTURE.md` — repository layer section, layer boundaries table
+- `.cursor/rules/04-database.mdc` — repository session usage conventions
+
+---
+
+## Phase 3.7 — Gateway Operational Models (2026-07-23)
+
+### Added
+
+- `backend/src/models/api_key.py` — `APIKey` (env-var credential references, unique `(provider_id, name)`)
+- `backend/src/models/usage_record.py` — `UsageRecord` (token counts, cost, latency, billing audit)
+- `backend/src/models/provider_health.py` — `ProviderHealth` (historical health snapshots)
+- `backend/alembic/versions/20260723_2200_gateway_operational_models.py` — migration `b7e4d9f21c03`
+- [ADR-011](architecture/ADR-011-gateway-operational-models.md)
+
+### Changed
+
+- `backend/src/models/provider.py` — `api_keys`, `usage_records`, `health_checks` relationships
+- `backend/src/models/ai_model.py` — `usage_records` relationship
+- `backend/src/models/chat_session.py` — `usage_records` relationship
+- `backend/src/models/__init__.py` — exports all 10 ORM entities
+- `docs/ARCHITECTURE.md` — ER diagram extended; migrations table updated
+
+---
+
+## Phase 3.6 — Alembic Migration Infrastructure (2026-07-23)
+
+### Added
+
+- `backend/alembic.ini` — Alembic config (`prepend_sys_path`, sortable `file_template`, `revision_environment`)
+- `backend/alembic/env.py` — async migration env (`asyncpg`, `Base.metadata`, `settings.DATABASE_URL`)
+- `backend/alembic/script.py.mako` — revision template
+- `backend/alembic/versions/20260723_2108_initial_schema.py` — initial migration (`a3f6c2d18e01`) for 7 domain tables
+- `backend/alembic/README` — migration command reference
+- [ADR-010](architecture/ADR-010-alembic-async-migrations.md)
+- Migrations section in `docs/ARCHITECTURE.md`
+
+### Changed
+
+- `.cursor/rules/04-database.mdc` — Alembic workflow documented
+
+---
+
+## Phase 3.5 — Conversation Domain Models (2026-07-23)
+
+### Added
+
+- `backend/src/models/chat_session.py` — `ChatSession` (UUID, provider/model FKs, session overrides, JSONB metadata)
+- `backend/src/models/message.py` — `Message` (role, content, metrics, provider response metadata)
+- `backend/src/models/prompt_template.py` — `PromptTemplate` (versioned templates, JSONB variables)
+- Bidirectional relationships: `Provider`/`AIModel` → `ChatSession` → `Message`
+- [ADR-009](architecture/ADR-009-conversation-domain-models.md)
+
+### Changed
+
+- `backend/src/models/provider.py` — `chat_sessions` relationship
+- `backend/src/models/ai_model.py` — `chat_sessions` relationship
+- `backend/src/models/__init__.py` — exports new entities
+- `docs/ARCHITECTURE.md` — extended ER diagram for conversation domain
+
+---
+
 ## Phase 3.4 — Provider & Model Configuration (2026-07-23)
 
 ### Added

@@ -12,7 +12,9 @@ from src.models.mixins import TimestampMixin
 
 if TYPE_CHECKING:
     from src.models.ai_model_configuration import AIModelConfiguration
+    from src.models.chat_session import ChatSession
     from src.models.provider import Provider
+    from src.models.usage_record import UsageRecord
 
 
 class AIModel(Base, TimestampMixin):
@@ -95,6 +97,16 @@ class AIModel(Base, TimestampMixin):
         lazy="selectin",
         uselist=False,
         cascade="all, delete-orphan",
+    )
+    chat_sessions: Mapped[list[ChatSession]] = relationship(
+        "ChatSession",
+        back_populates="ai_model",
+        lazy="selectin",
+    )
+    usage_records: Mapped[list[UsageRecord]] = relationship(
+        "UsageRecord",
+        back_populates="ai_model",
+        lazy="selectin",
     )
 
     def __repr__(self) -> str:
