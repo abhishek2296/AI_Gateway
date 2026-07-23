@@ -11,9 +11,49 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ### Added
 
 - Engineering standards bootstrap: Cursor rules (`.cursor/rules/00`–`08`)
-- Project documentation: `docs/ROADMAP.md`, `PROJECT_MEMORY.md`, `ARCHITECTURE.md`, `CHANGELOG.md`
-- Architecture Decision Records ADR-001 through ADR-006
-- Root `README.md` with installation and development guide
+- Project documentation under `docs/`
+- Architecture Decision Records (ADR stubs / docs)
+
+---
+
+## Phase 3.4 — Provider & Model Configuration (2026-07-23)
+
+### Added
+
+- `backend/src/models/ai_model.py` — `AIModel` ORM entity (renamed from `Model`; table `ai_models`)
+- `backend/src/models/provider_configuration.py` — 1:1 `ProviderConfiguration` (connection settings, JSONB `extra_config`)
+- `backend/src/models/ai_model_configuration.py` — 1:1 `AIModelConfiguration` (generation defaults, JSONB `extra_parameters`)
+- Nullable `description` on `Provider` and `AIModel`
+- [ADR-008](architecture/ADR-008-aimodel-and-configuration-entities.md)
+
+### Changed
+
+- Removed ORM entity named `Model` / file `model.py`
+- `Provider.ai_models` replaces `Provider.models`; capability ownership documented on entities
+- Runtime enum `core.enums.Provider` renamed to `ProviderType` (schemas + `OllamaService` updated)
+- Deduplicated `ChatResponse` in `schemas/chat.py` while updating the enum reference
+- `docs/ARCHITECTURE.md` ER diagram updated for configuration entities
+
+### Removed
+
+- `backend/src/models/model.py`
+
+---
+
+## Phase 3.3 — Core Domain Models (2026-07-23)
+
+### Added
+
+- `backend/src/models/provider.py` — `Provider` ORM entity (slug, capabilities, local/active flags)
+- `backend/src/models/model.py` — `Model` ORM entity (per-provider model catalog, token limits, capability flags)
+- Bidirectional `Provider.models` ↔ `Model.provider` relationship with `lazy="selectin"` and cascade delete
+- Unique constraint `uq_models_provider_id_model_name` on `(provider_id, model_name)`
+- Database design section and ER diagram in `docs/ARCHITECTURE.md`
+
+### Changed
+
+- `backend/src/models/__init__.py` — exports `Provider` and `Model`
+- `docs/ROADMAP.md` — Phase 3.3 marked complete; next work noted
 
 ---
 

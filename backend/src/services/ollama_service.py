@@ -9,7 +9,7 @@ from src.core.exceptions import (
     OllamaConnectionException,
 )
 from src.services.base_llm import BaseLLMService
-from src.core.enums import Provider, HealthStatus
+from src.core.enums import HealthStatus, ProviderType
 
 logger = logging.getLogger(__name__)
 
@@ -50,7 +50,7 @@ class OllamaService(BaseLLMService):
         return {
             "response": response["message"]["content"],
             "model": self.model,
-            "provider": Provider.OLLAMA,
+            "provider": ProviderType.OLLAMA,
         }
 
 
@@ -66,7 +66,7 @@ class OllamaService(BaseLLMService):
 
             return {
                 "status": HealthStatus.HEALTHY,
-                "provider": Provider.OLLAMA,
+                "provider": ProviderType.OLLAMA,
                 "model": self.model,
                 "connected": True,
                 "latency_ms": round(latency, 2),
@@ -78,7 +78,7 @@ class OllamaService(BaseLLMService):
 
             return {
                 "status": HealthStatus.UNHEALTHY,
-                "provider": Provider.OLLAMA,
+                "provider": ProviderType.OLLAMA,
                 "model": self.model,
                 "connected": False,
                 "latency_ms": round(latency, 2),

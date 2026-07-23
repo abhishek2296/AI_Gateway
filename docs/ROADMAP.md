@@ -30,7 +30,9 @@ The gateway is **infrastructure**, not a chatbot or coding assistant.
 
 **Phase 3 — Persistence Layer** (in progress)
 
-Next sub-phase: **3.2.2 — Domain Models**
+Completed: **3.4 — Provider & Model Configuration**
+
+Next: remaining domain entities (ChatSession, Message, …) or **3.5 — Alembic**
 
 ---
 
@@ -67,12 +69,13 @@ Next sub-phase: **3.2.2 — Domain Models**
 |-----------|--------|-------------|
 | 3.1 Database Infrastructure | ✅ | Async SQLAlchemy engine, session factory, `get_session()` |
 | 3.2.1 ORM Foundation | ✅ | `Base`, `TimestampMixin`, `models/__init__.py` |
-| 3.2.2 Domain Models | Planned | Provider, Model, ChatSession, Message, PromptTemplate, APIKey, ProviderConfiguration |
-| 3.3 Relationships | Planned | Foreign keys, `relationship()` mappings |
-| 3.4 Alembic | Planned | Migration config, initial schema |
-| 3.5 Repository Pattern | Planned | Data access layer per entity |
-| 3.6 Unit of Work | Planned | Transaction boundary management |
-| 3.7 Testing | Planned | pytest, async fixtures, API + DB tests |
+| 3.3 Core Domain Models | ✅ | `Provider`, `AIModel` (originally `Model`) + relationship |
+| 3.4 Provider & Model Configuration | ✅ | Refactors, `ProviderConfiguration`, `AIModelConfiguration` |
+| 3.4.x Remaining Domain Models | Planned | ChatSession, Message, PromptTemplate, APIKey |
+| 3.5 Alembic | Planned | Migration config, initial schema |
+| 3.6 Repository Pattern | Planned | Data access layer per entity |
+| 3.7 Unit of Work | Planned | Transaction boundary management |
+| 3.8 Testing | Planned | pytest, async fixtures, API + DB tests |
 
 ### Phase 4 — Multi-Provider Architecture
 
@@ -181,11 +184,13 @@ Next sub-phase: **3.2.2 — Domain Models**
 | 2 — AI Gateway Core | ✅ |
 | 3.1 — Database Infrastructure | ✅ |
 | 3.2.1 — ORM Foundation | ✅ |
+| 3.3 — Core Domain Models (Provider, AIModel) | ✅ |
+| 3.4 — Provider & Model Configuration | ✅ |
 
 ---
 
 ## Upcoming (Next 3 Tasks)
 
-1. **3.2.2** — Implement domain ORM models
-2. **3.3** — Define model relationships
-3. **3.4** — Configure Alembic and initial migration
+1. **3.4.x** — Remaining domain ORM models (ChatSession, Message, …)
+2. **3.5** — Configure Alembic and initial migration
+3. **3.6** — Repository pattern

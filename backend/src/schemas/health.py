@@ -1,11 +1,11 @@
 from pydantic import BaseModel
-from src.core.enums import Provider, HealthStatus
+from src.core.enums import HealthStatus, ProviderType
 
 
 class HealthResponse(BaseModel):
 
     status: HealthStatus
-    provider: Provider
+    provider: ProviderType
     model: str
     connected: bool
     latency_ms: float

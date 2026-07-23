@@ -1,6 +1,7 @@
 from pydantic import BaseModel
-from src.core.enums import Provider
-from src.core.config import settings
+
+from src.core.enums import ProviderType
+
 
 class ChatRequest(BaseModel):
     message: str
@@ -17,20 +18,14 @@ class ChatRequest(BaseModel):
 class ChatResponse(BaseModel):
     response: str
     model: str
-    provider: Provider
-
-class ChatResponse(BaseModel):
-
-    response: str
-    model: str
-    provider: Provider
+    provider: ProviderType
 
     model_config = {
         "json_schema_extra": {
             "example": {
                 "response": "FastAPI is a modern Python framework for building APIs.",
                 "model": "qwen3:8b",
-                "provider": "ollama"
+                "provider": "ollama",
             }
         }
     }

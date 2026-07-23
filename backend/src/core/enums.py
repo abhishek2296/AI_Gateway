@@ -1,7 +1,9 @@
 from enum import Enum
 
 
-class Provider(str, Enum):
+class ProviderType(str, Enum):
+    """Runtime identifier for a known LLM backend family."""
+
     OLLAMA = "ollama"
 
 
