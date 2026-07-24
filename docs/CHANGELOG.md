@@ -16,6 +16,36 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## Phase 4.2 — Provider Registry & Factory (2026-07-24)
+
+### Added
+
+- `backend/src/providers/registry.py` — `ProviderRegistry`, `register_provider`, `get_registry`
+- `backend/src/providers/factory.py` — `ProviderFactory` (fresh instance per `create()`)
+- `backend/tests/unit/providers/` — unit tests + `MockProvider`
+
+### Changed
+
+- `backend/src/providers/__init__.py` — export registry and factory symbols
+- `docs/ARCHITECTURE.md` — registry/factory flow diagram and component table
+
+---
+
+## Phase 4.1 — Provider Abstraction (2026-07-24)
+
+### Added
+
+- `backend/src/providers/base.py` — `BaseProvider` ABC + normalized DTOs
+- `backend/src/providers/exceptions.py` — `ProviderError` hierarchy (8 exception types)
+- `backend/src/providers/__init__.py` — public exports
+- [ADR-003](architecture/ADR-003-provider-abstraction.md) populated
+
+### Changed
+
+- `docs/ARCHITECTURE.md` — provider abstraction layer section
+
+---
+
 ## Phase 3.11 — Persistence Hardening (2026-07-23)
 
 ### Added

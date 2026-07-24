@@ -81,17 +81,51 @@ backend/
 
 ## Current Work
 
-**Next:** **Phase 4 — Multi-Provider Architecture**
-
----
-
-## Remaining Work (Phase 3)
-
-None — Phase 3 complete.
+**Phase 4 — Multi-Provider Architecture** (4.2 complete; next: Ollama adapter)
 
 ---
 
 ## Memory Log
+
+### 2026-07-24 — Phase 4.2 Provider Registry & Factory
+
+**Phase:** 4.2
+
+**Objective:** Thread-safe registry of provider classes and a small factory for on-demand instantiation. No service/route changes, no Ollama HTTP.
+
+**Files created:**
+- `backend/src/providers/registry.py`, `factory.py`
+- `backend/tests/unit/providers/mock_provider.py`, `test_provider_registry.py`
+
+**Files modified:**
+- `backend/src/providers/__init__.py`
+- `docs/ARCHITECTURE.md`, `PROJECT_MEMORY.md`, `CHANGELOG.md`, `ROADMAP.md`
+
+**Decisions:**
+- Registry stores **classes**, not instances — shared catalog, no shared mutable state across requests.
+- Factory does **not** cache instances — each call gets a clean lifecycle and request-scoped constructor kwargs.
+- `register_provider()` on the default registry prepares import-time self-registration by future provider modules.
+
+**Verification:** 12 unit tests passed (`tests/unit/providers/test_provider_registry.py`).
+
+**Next task:** `OllamaProvider` implementing `BaseProvider` (4.3).
+
+### 2026-07-24 — Phase 4.1 Provider Abstraction
+
+**Phase:** 4.1
+
+**Objective:** Vendor-neutral provider contract and exception hierarchy. No implementations, no route/service changes.
+
+**Files created:**
+- `backend/src/providers/base.py`, `exceptions.py`, `__init__.py`
+- `docs/architecture/ADR-003-provider-abstraction.md` (populated)
+
+**Files modified:**
+- `docs/ARCHITECTURE.md`, `PROJECT_MEMORY.md`, `CHANGELOG.md`, `ROADMAP.md`
+
+**Decisions:** See [ADR-003](architecture/ADR-003-provider-abstraction.md).
+
+**Next task:** Ollama adapter implementing `BaseProvider` (4.3).
 
 ### 2026-07-23 — Phase 3.11 Persistence Hardening
 

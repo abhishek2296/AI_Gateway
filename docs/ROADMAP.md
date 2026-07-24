@@ -30,9 +30,9 @@ The gateway is **infrastructure**, not a chatbot or coding assistant.
 
 **Phase 3 — Persistence Layer** (complete)
 
-Completed: **3.10 — Persistence Layer Testing**
+Completed: **Phase 3 — Persistence Layer**
 
-Next: **Phase 4 — Multi-Provider Architecture**
+In progress: **Phase 4 — Multi-Provider Architecture** (4.2 complete; next: Ollama adapter)
 
 ---
 
@@ -79,9 +79,25 @@ Next: **Phase 4 — Multi-Provider Architecture**
 | 3.10 Testing | ✅ | pytest + PostgreSQL integration suite |
 | 3.11 Hardening | ✅ | Unique `request_id`, one default per provider (model/key) |
 
-### Phase 4 — Multi-Provider Architecture
+### Phase 4 — Multi-Provider Architecture 🚧
 
-- Provider registry and factory
+| Sub-phase | Status | Deliverables |
+|-----------|--------|-------------|
+| 4.1 Provider Abstraction | ✅ | `BaseProvider`, exception hierarchy, normalized DTOs |
+| 4.2 Provider Registry & Factory | ✅ | `ProviderRegistry`, `ProviderFactory`, `register_provider` |
+| 4.3 Ollama Adapter | Planned | `OllamaProvider` implementing `BaseProvider` |
+| 4.4 OpenAI / Anthropic / Others | Planned | Additional provider adapters |
+
+**Phase 4.1 deliverables:**
+- `backend/src/providers/` — `BaseProvider` ABC, DTOs, `ProviderError` hierarchy
+- [ADR-003](architecture/ADR-003-provider-abstraction.md)
+
+**Phase 4.2 deliverables:**
+- `backend/src/providers/registry.py` — thread-safe `ProviderRegistry`, `register_provider`, `get_registry`
+- `backend/src/providers/factory.py` — `ProviderFactory` (no instance caching)
+- Unit tests in `backend/tests/unit/providers/`
+
+**Planned capabilities:**
 - OpenAI, Anthropic, Gemini implementations
 - Azure OpenAI and AWS Bedrock adapters
 - Provider-specific configuration and error mapping

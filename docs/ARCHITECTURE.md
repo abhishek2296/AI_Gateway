@@ -53,6 +53,7 @@ sequenceDiagram
 | Routes | `api/routes/` | HTTP mapping, status codes |
 | Dependencies | `api/dependencies.py` | FastAPI DI wiring |
 | Services | `services/` | Business logic, provider orchestration |
+| Providers | `providers/` | Vendor-neutral LLM adapter contracts (Phase 4) |
 | Repositories | `repositories/` | Async data access, entity-specific queries |
 | Unit of Work | `unit_of_work/` | Transaction coordination, repository registry |
 | Schemas | `schemas/` | Pydantic request/response contracts |
@@ -64,16 +65,54 @@ Routes never import provider SDKs. ORM models never handle HTTP.
 
 ---
 
-## Provider Abstraction
+## Provider Abstraction (Phase 4)
 
-All LLM backends implement `BaseLLMService`:
+Vendor-specific SDK/HTTP logic lives behind `BaseProvider` in `backend/src/providers/`:
 
-- `chat(message)` — generate a completion
-- `check_connection()` — health / latency probe
+```
+backend/src/providers/
+├── base.py         # BaseProvider ABC + normalized request/response DTOs
+├── exceptions.py   # ProviderError hierarchy
+├── registry.py     # ProviderRegistry + register_provider helper
+├── factory.py      # ProviderFactory (on-demand instantiation)
+└── __init__.py
+```
 
-Current implementation: `OllamaService`.
+| Method | Purpose |
+|--------|---------|
+| `chat(request)` | Non-streaming completion |
+| `stream_chat(request)` | Streaming completion chunks |
+| `embeddings(request)` | Vector embeddings |
+| `list_models()` | Available model catalog |
+| `health_check()` | Connectivity probe |
 
-Adding a provider should require: one service class, config vars, enum entry, and DI registration — no route changes.
+### Registry and factory (Phase 4.2)
+
+Provider **classes** are registered at import time; the factory creates a **fresh instance** per request or service call.
+
+```mermaid
+flowchart TD
+    API[API]
+    AIService[AIService]
+    Factory[ProviderFactory]
+    Registry[ProviderRegistry]
+    Impl[Provider Implementation]
+
+    API --> AIService
+    AIService --> Factory
+    Factory --> Registry
+    Registry --> Impl
+```
+
+| Component | Responsibility |
+|-----------|----------------|
+| `ProviderRegistry` | Thread-safe map of `provider_name` → provider class |
+| `register_provider()` | Convenience helper; forwards to the default registry |
+| `ProviderFactory` | Resolves class from registry and constructs instance with `**kwargs` |
+
+Future provider modules (e.g. `ollama_provider.py`) call `register_provider(OllamaProvider)` at import time so the registry is populated without central edits.
+
+Legacy `BaseLLMService` / `OllamaService` remain until adapters are wired in a later sub-phase. See [ADR-003](architecture/ADR-003-provider-abstraction.md).
 
 ---
 
@@ -501,6 +540,8 @@ backend/src/
 ├── alembic/                 # migrations (see Migrations section)
 ├── alembic.ini
 ├── schemas/
+├── providers/               # vendor-neutral LLM adapters (Phase 4)
+│   └── ...
 └── services/
     ├── base_llm.py
     ├── ollama_service.py
