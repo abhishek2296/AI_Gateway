@@ -30,7 +30,7 @@ The gateway is **infrastructure**, not a chatbot or coding assistant.
 
 **Phase 3 — Persistence Layer** (complete)
 
-Completed: **Phase 4 — Multi-Provider Architecture**, **Phase 5 — Cloud Provider Implementations**
+Completed: **Phase 4 — Multi-Provider Architecture**, **Phase 5 — Cloud Provider Implementations** (including 5.8 Dockerization)
 
 Next: **Phase 6 — Model Registry**
 
@@ -139,6 +139,7 @@ Next: **Phase 6 — Model Registry**
 | 5.5 Gemini | ✅ | Generate Content adapter |
 | 5.6 Parity | ✅ | Contract tests, `ProviderType` enum |
 | 5.7 Documentation | ✅ | ADR-018/019, provider guides |
+| 5.8 Dockerization | ✅ | Dockerfile, dev/prod Compose, README |
 
 **Deliverables:**
 - Full `OpenAIProvider`, `AnthropicProvider`, `GeminiProvider` (httpx REST)
@@ -146,6 +147,12 @@ Next: **Phase 6 — Model Registry**
 - 115 provider unit tests (respx)
 - [ADR-018](architecture/ADR-018-extended-provider-dtos.md), [ADR-019](architecture/ADR-019-cloud-provider-implementations.md)
 - Provider configuration guides in `docs/providers/`
+
+**Phase 5.8 deliverables:**
+- `backend/Dockerfile` — multi-target build (dev hot reload, prod non-root)
+- `docker-compose.dev.yml`, `docker-compose.prod.yml` — full stack (API + Postgres)
+- `backend/docker/entrypoint.sh` — wait for DB, Alembic migrate, exec uvicorn
+- Root `README.md` — Docker quick start and env reference
 
 ### Phase 6 — Model Registry
 
@@ -257,6 +264,7 @@ Next: **Phase 6 — Model Registry**
 | 3.11 — Persistence Hardening | ✅ |
 | 4 — Multi-Provider Architecture | ✅ |
 | 5 — Cloud Provider Implementations | ✅ |
+| 5.8 — Dockerization | ✅ |
 
 ---
 

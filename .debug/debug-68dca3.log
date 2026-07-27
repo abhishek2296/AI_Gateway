@@ -1,0 +1,4 @@
+{"sessionId": "68dca3", "hypothesisId": "H2", "location": "wait_for_db.py", "message": "wait_config", "data": {"host": "postgres", "port": 5432, "db_wait_host_env": "postgres", "database_url_present": true}, "timestamp": 1785176802750}
+{"sessionId": "68dca3", "hypothesisId": "H1", "location": "wait_for_db.py", "message": "connected", "data": {"attempt": 1, "detail": "connected via family=2 addr=('172.19.0.2', 5432)"}, "timestamp": 1785176802759}
+{"sessionId": "68dca3", "hypothesisId": "H2", "location": "wait_for_db.py", "message": "wait_config", "data": {"host": "postgres", "port": 5432, "db_wait_host_env": "postgres", "database_url_present": true}, "timestamp": 1785176883891}
+{"sessionId": "68dca3", "hypothesisId": "H1", "location": "wait_for_db.py", "message": "connected", "data": {"attempt": 1, "detail": "connected via family=2 addr=('172.19.0.2', 5432)"}, "timestamp": 1785176883898}

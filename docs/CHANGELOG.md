@@ -13,6 +13,14 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Engineering standards bootstrap: Cursor rules (`.cursor/rules/00`–`08`)
 - Project documentation under `docs/`
 - Architecture Decision Records (ADR stubs / docs)
+- `backend/Dockerfile` — multi-stage dev/prod targets with uv
+- `backend/.dockerignore`, `backend/docker/entrypoint.sh`
+- `docker-compose.dev.yml`, `docker-compose.prod.yml` — API + PostgreSQL stacks
+- Root `README.md` — Docker development and production setup
+
+### Changed
+
+- `.env.example` — `HOST`, `PORT`, `APP_PORT`, Docker `OLLAMA_HOST` notes
 
 ---
 

@@ -25,7 +25,7 @@ Build a **provider-agnostic AI Gateway** — a production-grade HTTP API that no
 | DB driver | asyncpg |
 | Database | PostgreSQL 17 |
 | LLM (current) | Ollama (`qwen3:8b`) |
-| Containerization | Docker Compose (Postgres only) |
+| Containerization | Docker Compose (dev/prod API + Postgres) |
 | Migrations | Alembic (configured) |
 
 ---
@@ -81,13 +81,39 @@ backend/
 
 ## Current Work
 
-**Phase 5 — Cloud Provider Implementations** (complete)
+**Phase 5.8 — Dockerization** (complete)
 
 **Next:** Phase 6 — Model Registry
 
 ---
 
 ## Memory Log
+
+### 2026-07-27 — Phase 5.8 Dockerization
+
+**Phase:** 5.8
+
+**Objective:** Containerize the FastAPI backend for development (hot reload) and production (multi-stage, non-root) without changing application logic.
+
+**Files created:**
+- `backend/Dockerfile` — builder, `dev`, and `prod` targets (uv + Python 3.14-slim)
+- `backend/.dockerignore`, `backend/docker/entrypoint.sh`
+- `docker-compose.dev.yml`, `docker-compose.prod.yml`
+- `README.md` (repo root)
+
+**Files modified:**
+- `.env.example` — Docker/server/Ollama variables
+- `docs/ARCHITECTURE.md`, `PROJECT_MEMORY.md`, `CHANGELOG.md`, `ROADMAP.md`
+
+**Decisions:**
+- Full-stack Compose (API + Postgres) for one-command startup; legacy `docker-compose.yml` unchanged.
+- Entrypoint waits for Postgres, runs `alembic upgrade head`, then `exec` uvicorn.
+- Ollama stays on host; Compose sets `host.docker.internal` via `extra_hosts`.
+- Shared Postgres volume name (`ai_gateway_postgres_data`) across compose files.
+
+**Verification:** Dev and prod images build successfully. Dev stack: migrations on startup, `/` and `/health` return 200, Swagger at `/docs` accessible, hot reload enabled (`--reload-dir src`). Prod stack: container health `healthy`, runs as `appuser`, restart policy configured. 115 unit tests pass. Note: if ports 5432/8000 are in use locally, set `POSTGRES_PORT` and `APP_PORT` in `.env`.
+
+**Next task:** Phase 6 — Model Registry.
 
 ### 2026-07-27 — Phase 5 Cloud Provider Implementations
 

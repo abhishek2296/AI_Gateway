@@ -559,6 +559,38 @@ Run: `cd backend && uv run pytest`
 
 ---
 
+## Deployment (Docker Compose)
+
+The API and PostgreSQL run together via Compose. Legacy Postgres-only compose remains for host-based development.
+
+| File | Purpose |
+|------|---------|
+| `docker-compose.dev.yml` | Development: hot reload, source mounts, Alembic on startup |
+| `docker-compose.prod.yml` | Production: multi-stage image, non-root user, restart policy, health checks |
+| `docker-compose.yml` | Postgres only (integration tests / host-run API) |
+
+```mermaid
+flowchart LR
+  client[Client] --> api[api container]
+  api --> postgres[postgres container]
+  api --> ollamaHost[Ollama on host optional]
+```
+
+**Image build:** `backend/Dockerfile` with `dev` and `prod` targets; dependencies installed via uv from `uv.lock`.
+
+**Startup:** `backend/docker/entrypoint.sh` waits for Postgres, runs `alembic upgrade head`, then execs uvicorn.
+
+**Commands:**
+
+```bash
+docker compose -f docker-compose.dev.yml up --build    # development
+docker compose -f docker-compose.prod.yml up -d --build  # production
+```
+
+See root [README.md](../README.md) for environment variables and validation URLs (`/docs`, `/health`).
+
+---
+
 ## Migrations (Alembic)
 
 Schema changes are managed by Alembic under `backend/alembic/`. Run commands from `backend/`:
