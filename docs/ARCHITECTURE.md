@@ -36,8 +36,9 @@ sequenceDiagram
     MW->>MW: X-Request-ID, timing
     MW->>R: Forward
     R->>S: Domain call via DI
-    S->>P: BaseLLMService method
-    P->>L: Provider SDK / HTTP
+    S->>S: ProviderFactory.create()
+    S->>P: BaseProvider method
+    P->>L: Provider HTTP
     L-->>P: Raw response
     P-->>S: Normalized dict
     S-->>R: Result
@@ -75,6 +76,16 @@ backend/src/providers/
 ├── exceptions.py   # ProviderError hierarchy
 ├── registry.py     # ProviderRegistry + register_provider helper
 ├── factory.py      # ProviderFactory (on-demand instantiation)
+├── ollama.py       # OllamaProvider REST adapter (Phase 4.3)
+├── openai.py       # OpenAIProvider REST adapter (Phase 5)
+├── anthropic.py    # AnthropicProvider REST adapter (Phase 5)
+├── gemini.py       # GeminiProvider REST adapter (Phase 5)
+├── http_mixin.py   # HTTPProviderMixin shared lifecycle (Phase 4.6)
+├── http_errors.py  # HTTPErrorMapper (Phase 5)
+├── http_auth.py    # Auth header builders (Phase 5)
+├── retry.py        # Async retry helper (Phase 5)
+├── streaming.py    # SSE / NDJSON parsers (Phase 5)
+├── validation.py   # ModelListCache (Phase 5)
 └── __init__.py
 ```
 
@@ -110,9 +121,111 @@ flowchart TD
 | `register_provider()` | Convenience helper; forwards to the default registry |
 | `ProviderFactory` | Resolves class from registry and constructs instance with `**kwargs` |
 
-Future provider modules (e.g. `ollama_provider.py`) call `register_provider(OllamaProvider)` at import time so the registry is populated without central edits.
+Future provider modules call `register_provider(...)` at import time so the registry is populated without central edits.
 
-Legacy `BaseLLMService` / `OllamaService` remain until adapters are wired in a later sub-phase. See [ADR-003](architecture/ADR-003-provider-abstraction.md).
+### Ollama adapter (Phase 4.3)
+
+`OllamaProvider` is the first concrete implementation. It uses `httpx.AsyncClient` against Ollama's REST API and self-registers on import.
+
+| Ollama endpoint | Provider method |
+|-----------------|-----------------|
+| `GET /api/tags` | `health_check()`, `list_models()` |
+| `POST /api/chat` | `chat()`, `stream_chat()` |
+| `POST /api/embeddings` | `embeddings()` |
+
+**HTTP lifecycle:** The provider accepts an optional injected `httpx.AsyncClient`. When none is supplied, it creates one scoped to `base_url` and closes it in `close()` / `__aexit__`. Injected clients are never closed by the provider.
+
+**Streaming:** Non-buffered NDJSON via `client.stream()` and `aiter_lines()`; each parsed line yields a `ChatStreamChunk`.
+
+**Error mapping:** Connection/timeout → `ProviderUnavailableError`; 404 → `ModelNotFoundError`; 400 → `InvalidRequestError`; 401/403 → `AuthenticationError`; 429 → `RateLimitError`.
+
+See [ADR-014](architecture/ADR-014-ollama-provider.md).
+
+### Service integration (Phase 4.4)
+
+`AIService` is the provider-agnostic orchestration layer. Routes still call `ChatService` and `LLMHealthAdapter`; both delegate to `AIService`, which:
+
+1. Resolves provider (`settings.DEFAULT_PROVIDER` or caller override)
+2. Resolves model (`settings.DEFAULT_MODEL` or caller override)
+3. Creates a provider via `ProviderFactory`
+4. Executes the operation through `BaseProvider`
+5. Maps DTOs to legacy route payloads and `ProviderError` to service exceptions
+
+```mermaid
+flowchart TD
+    Route[API Route]
+    ChatSvc[ChatService / LLMHealthAdapter]
+    AI[AIService]
+    Factory[ProviderFactory]
+    Provider[BaseProvider impl]
+
+    Route --> ChatSvc
+    ChatSvc --> AI
+    AI --> Factory
+    Factory --> Provider
+```
+
+Provider lifecycle is scoped per request: `async with provider` when supported, otherwise explicit `close()` in `finally`.
+
+### Database-backed resolution (Phase 4.5)
+
+Provider and model selection no longer rely on settings alone. `ProviderResolver` applies this precedence:
+
+| Priority | Provider | Model |
+|----------|----------|-------|
+| 1 | Request override | Request override |
+| 2 | Database default provider | Database default model (for selected provider) |
+| 3 | `settings.DEFAULT_PROVIDER` | `settings.DEFAULT_MODEL` |
+| 4 | Hardcoded `"ollama"` | — |
+
+`ProviderConfigResolver` builds factory kwargs from `Provider`, `ProviderConfiguration`, and `APIKey` rows (endpoint, timeout, env-var API key references). Results are cached in memory for `PROVIDER_RESOLUTION_CACHE_TTL_SECONDS` (default 60s). **Provider instances are never cached.**
+
+```mermaid
+flowchart TD
+    AI[AIService]
+    Coord[ProviderResolutionCoordinator]
+    Cache[ProviderResolutionCache]
+    Res[ProviderResolver]
+    Config[ProviderConfigResolver]
+    Repos[(Repositories)]
+    Factory[ProviderFactory]
+
+    AI --> Coord
+    Coord --> Cache
+    Coord --> Res
+    Coord --> Config
+    Res --> Repos
+    AI --> Factory
+```
+
+See [ADR-015](architecture/ADR-015-provider-service-integration.md) and [ADR-016](architecture/ADR-016-provider-resolution.md).
+
+### Cloud provider adapters (Phase 5)
+
+All four registered providers implement the full `BaseProvider` contract via httpx REST:
+
+| Provider | Registry key | Primary API | Embeddings |
+|----------|--------------|-------------|------------|
+| Ollama | `ollama` | `/api/chat` | Yes |
+| OpenAI | `openai` | `/v1/chat/completions` | Yes |
+| Anthropic | `anthropic` | `/v1/messages` | No |
+| Gemini | `gemini` | `/v1beta/models/{model}:generateContent` | Yes |
+
+Shared infrastructure: `HTTPErrorMapper`, `retry_async`, `iter_sse_json` / `iter_sse_events`, `ModelListCache`, auth header builders in `http_auth.py`.
+
+Extended DTOs support multimodal `parts`, tools, structured JSON, and provider-specific options (e.g., Gemini `safetySettings`).
+
+`ProviderConfigResolver` includes dedicated builders for `anthropic` (API version header) and `gemini`.
+
+`ProviderType` enum: `ollama`, `openai`, `anthropic`, `gemini`.
+
+See [ADR-018](architecture/ADR-018-extended-provider-dtos.md) and [ADR-019](architecture/ADR-019-cloud-provider-implementations.md). Per-vendor configuration: `docs/providers/`.
+
+### Provider skeletons (Phase 4.6 — superseded by Phase 5)
+
+OpenAI, Anthropic, and Gemini were initially registered as skeletons (Phase 4.6). Phase 5 replaced skeleton method bodies with full REST implementations while preserving registry keys and `HTTPProviderMixin` lifecycle.
+
+See [ADR-017](architecture/ADR-017-provider-skeletons.md).
 
 ---
 
@@ -543,9 +656,15 @@ backend/src/
 ├── providers/               # vendor-neutral LLM adapters (Phase 4)
 │   └── ...
 └── services/
+    ├── ai_service.py
+    ├── provider_resolver.py
+    ├── provider_config_resolver.py
+    ├── provider_resolution_coordinator.py
+    ├── resolution_types.py
+    ├── chat_service.py
+    ├── llm_adapter.py
     ├── base_llm.py
-    ├── ollama_service.py
-    └── chat_service.py
+    └── ollama_service.py        # legacy; not wired to routes
 ```
 
 **Naming note:** `src.models.Provider` is the ORM entity. `src.core.enums.ProviderType` is the runtime string enum used in API responses. They are distinct types.
@@ -556,10 +675,10 @@ backend/src/
 
 | Provider | Status |
 |----------|--------|
-| Ollama | Implemented (runtime) |
-| OpenAI | Planned |
-| Anthropic | Planned |
-| Gemini | Planned |
+| Ollama | Implemented |
+| OpenAI | Skeleton (registered) |
+| Anthropic | Skeleton (registered) |
+| Gemini | Skeleton (registered) |
 | Azure OpenAI | Planned |
 | AWS Bedrock | Planned |
 

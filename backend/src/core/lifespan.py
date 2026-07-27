@@ -5,7 +5,7 @@ from fastapi import FastAPI
 
 from src.core.logging import setup_logging
 from src.core.database import close_database_connection
-from src.services.ollama_service import OllamaService
+from src.services.ai_service import create_ai_service
 
 logger = logging.getLogger(__name__)
 
@@ -18,9 +18,8 @@ async def lifespan(app: FastAPI):
     logger.info("=" * 60)
     logger.info("Starting AI Gateway...")
 
-    llm = OllamaService()
-
-    health = await llm.check_connection()
+    ai_service = create_ai_service()
+    health = await ai_service.check_connection()
 
     if health["connected"]:
         logger.info(
@@ -30,7 +29,7 @@ async def lifespan(app: FastAPI):
             health["latency_ms"],
         )
     else:
-        logger.warning("Unable to connect to Ollama.")
+        logger.warning("Unable to connect to default provider.")
 
     logger.info("AI Gateway Ready")
     logger.info("=" * 60)

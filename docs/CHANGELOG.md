@@ -16,6 +16,107 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## Phase 5 — Cloud Provider Implementations (2026-07-27)
+
+### Added
+
+- `backend/src/providers/http_errors.py`, `http_auth.py`, `retry.py`, `streaming.py`, `validation.py`
+- Full `OpenAIProvider`, `AnthropicProvider`, `GeminiProvider` httpx REST adapters
+- Extended provider DTOs (vision, tools, JSON, content parts)
+- `UnsupportedCapabilityError` in provider exceptions
+- Provider unit tests: `test_http_errors`, `test_retry`, `test_streaming`, `test_openai_provider`, `test_anthropic_provider`, `test_gemini_provider`, `test_provider_contract`
+- JSON fixtures under `backend/tests/unit/providers/fixtures/`
+- [ADR-018](architecture/ADR-018-extended-provider-dtos.md), [ADR-019](architecture/ADR-019-cloud-provider-implementations.md)
+- Provider guides: `docs/providers/openai.md`, `anthropic.md`, `gemini.md`
+
+### Changed
+
+- `backend/src/providers/ollama.py` — `HTTPErrorMapper`; extended `ModelInfo` flags
+- `backend/src/providers/base.py` — extended DTOs and default capability methods
+- `backend/src/services/provider_config_resolver.py` — Anthropic/Gemini builders
+- `backend/src/core/config.py` — retry/cache settings, `ANTHROPIC_API_VERSION`
+- `backend/src/core/enums.py` — `ProviderType` adds OPENAI, ANTHROPIC, GEMINI
+- `backend/src/providers/__init__.py` — export shared symbols
+- `docs/ROADMAP.md` — Phase 5 = cloud providers; Model Registry → Phase 6
+- `docs/ARCHITECTURE.md` — cloud provider section
+- `.env.example` — provider HTTP retry/cache settings
+
+---
+
+## Phase 4.6 — Provider Skeletons (2026-07-27)
+
+### Added
+
+- `backend/src/providers/openai.py`, `anthropic.py`, `gemini.py` — registered skeleton adapters
+- `backend/src/providers/http_mixin.py` — shared HTTP client lifecycle
+- `backend/tests/unit/providers/test_provider_skeletons.py` — 29 parametrized tests
+- [ADR-017](architecture/ADR-017-provider-skeletons.md)
+
+### Changed
+
+- `backend/src/providers/ollama.py` — inherits `HTTPProviderMixin` (behavior unchanged)
+- `backend/src/providers/__init__.py` — export new providers
+- `backend/src/services/ai_service.py` — import skeleton modules for registration
+- `docs/ARCHITECTURE.md` — skeleton provider table
+
+---
+
+## Phase 4.5 — Database-Backed Provider Resolution (2026-07-27)
+
+### Added
+
+- `backend/src/services/provider_resolver.py` — precedence-based provider/model selection
+- `backend/src/services/provider_config_resolver.py` — factory kwargs from ORM rows
+- `backend/src/services/provider_resolution_coordinator.py` — session + cache orchestration
+- `backend/src/services/resolution_types.py` — shared resolution dataclasses
+- `backend/src/core/provider_resolution_cache.py` — in-memory TTL cache
+- `backend/tests/unit/services/test_provider_resolution.py` — 12 unit tests
+- [ADR-016](architecture/ADR-016-provider-resolution.md)
+
+### Changed
+
+- `backend/src/services/ai_service.py` — delegates to resolution coordinator
+- `backend/src/repositories/provider_repository.py` — `get_default_provider()`
+- `backend/src/core/config.py` — `PROVIDER_RESOLUTION_CACHE_TTL_SECONDS`
+- `docs/ARCHITECTURE.md` — resolution precedence and diagram
+
+---
+
+## Phase 4.4 — Provider Service Integration (2026-07-27)
+
+### Added
+
+- `backend/src/services/ai_service.py` — `AIService`, `ProviderContext`, `create_ai_service()`
+- `backend/src/services/llm_adapter.py` — `LLMHealthAdapter` for legacy `/health` route
+- `backend/tests/unit/services/test_ai_service.py` — 9 unit tests
+- [ADR-015](architecture/ADR-015-provider-service-integration.md)
+- `DEFAULT_PROVIDER` and `DEFAULT_MODEL` settings
+
+### Changed
+
+- `backend/src/services/chat_service.py` — delegates to `AIService`
+- `backend/src/api/dependencies.py` — injects shared `ProviderFactory` and `AIService`
+- `backend/src/core/lifespan.py` — startup health via `AIService`
+- `docs/ARCHITECTURE.md` — service integration flow
+
+---
+
+## Phase 4.3 — Ollama Provider Adapter (2026-07-27)
+
+### Added
+
+- `backend/src/providers/ollama.py` — `OllamaProvider` (httpx REST, DTO mapping, streaming, error translation)
+- `backend/tests/unit/providers/test_ollama_provider.py` — 14 respx unit tests
+- [ADR-014](architecture/ADR-014-ollama-provider.md)
+- `respx` dev dependency
+
+### Changed
+
+- `backend/src/providers/__init__.py` — export `OllamaProvider` (triggers auto-registration)
+- `docs/ARCHITECTURE.md` — Ollama adapter section
+
+---
+
 ## Phase 4.2 — Provider Registry & Factory (2026-07-24)
 
 ### Added

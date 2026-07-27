@@ -42,3 +42,7 @@ class InvalidRequestError(ProviderError):
 
 class StreamingNotSupportedError(ProviderError):
     """Raised when streaming is requested but not supported by the provider or model."""
+
+
+class UnsupportedCapabilityError(ProviderError):
+    """Raised when a provider does not support a requested capability."""

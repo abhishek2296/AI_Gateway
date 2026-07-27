@@ -1,0 +1,13 @@
+{
+  "candidates": [
+    {
+      "content": {"parts": [{"text": "Hello"}]},
+      "finishReason": "STOP"
+    }
+  ],
+  "usageMetadata": {
+    "promptTokenCount": 5,
+    "candidatesTokenCount": 2,
+    "totalTokenCount": 7
+  }
+}

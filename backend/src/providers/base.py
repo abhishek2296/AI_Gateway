@@ -3,8 +3,62 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from collections.abc import AsyncIterator, Sequence
+from collections.abc import AsyncIterator, Mapping, Sequence
 from dataclasses import dataclass, field
+from typing import Any, Literal
+
+
+@dataclass(frozen=True, slots=True)
+class TextPart:
+    """Text content block within a multimodal message."""
+
+    text: str
+
+
+@dataclass(frozen=True, slots=True)
+class ImagePart:
+    """Image content block within a multimodal message."""
+
+    media_type: str = "image/jpeg"
+    url: str | None = None
+    base64_data: str | None = None
+
+
+ContentPart = TextPart | ImagePart
+
+
+@dataclass(frozen=True, slots=True)
+class ToolDefinition:
+    """Function tool schema exposed to the model."""
+
+    name: str
+    description: str | None = None
+    parameters: Mapping[str, Any] | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class ToolCall:
+    """A tool invocation requested by the model."""
+
+    id: str
+    name: str
+    arguments: str
+
+
+@dataclass(frozen=True, slots=True)
+class ToolResult:
+    """Result returned to the model after tool execution."""
+
+    tool_call_id: str
+    content: str
+
+
+@dataclass(frozen=True, slots=True)
+class ResponseFormat:
+    """Structured output configuration for chat completions."""
+
+    type: Literal["text", "json", "json_schema"] = "text"
+    json_schema: Mapping[str, Any] | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -12,7 +66,10 @@ class ChatMessage:
     """One message in a chat completion request."""
 
     role: str
-    content: str
+    content: str = ""
+    parts: Sequence[ContentPart] | None = None
+    tool_calls: Sequence[ToolCall] | None = None
+    tool_call_id: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -37,6 +94,12 @@ class ChatRequest:
     temperature: float | None = None
     max_tokens: int | None = None
     stream: bool = False
+    top_p: float | None = None
+    stop: Sequence[str] | None = None
+    tools: Sequence[ToolDefinition] | None = None
+    tool_choice: str | None = None
+    response_format: ResponseFormat | None = None
+    provider_options: Mapping[str, Any] | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -48,15 +111,18 @@ class ChatResponse:
     finish_reason: str | None = None
     usage: TokenUsage | None = None
     provider_response_id: str | None = None
+    tool_calls: Sequence[ToolCall] | None = None
+    details: Mapping[str, str] = field(default_factory=dict)
 
 
 @dataclass(frozen=True, slots=True)
 class ChatStreamChunk:
     """One incremental chunk from a streaming chat completion."""
 
-    content: str
+    content: str = ""
     finish_reason: str | None = None
     usage: TokenUsage | None = None
+    tool_calls: Sequence[ToolCall] | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -86,6 +152,9 @@ class ModelInfo:
     context_window: int | None = None
     supports_streaming: bool = False
     supports_embeddings: bool = False
+    supports_vision: bool = False
+    supports_tools: bool = False
+    supports_json: bool = False
 
 
 @dataclass(frozen=True, slots=True)
@@ -161,3 +230,22 @@ class BaseProvider(ABC):
         Must not raise for expected unhealthy states; encode them in the result.
         Unexpected failures may still raise :class:`ProviderError`.
         """
+
+    async def validate_model(self, model: str) -> bool:
+        """Return whether ``model`` is offered by this provider."""
+        models = await self.list_models()
+        return any(item.id == model or item.name == model for item in models)
+
+    async def estimate_tokens(self, model: str, text: str) -> int:
+        """
+        Estimate token count for ``text``.
+
+        Raises:
+            UnsupportedCapabilityError: When the provider does not support estimation.
+        """
+        from src.providers.exceptions import UnsupportedCapabilityError
+
+        raise UnsupportedCapabilityError(
+            f"{self.provider_name!r} does not support token estimation.",
+            provider=self.provider_name,
+        )

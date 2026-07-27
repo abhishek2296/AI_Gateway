@@ -81,11 +81,148 @@ backend/
 
 ## Current Work
 
-**Phase 4 — Multi-Provider Architecture** (4.2 complete; next: Ollama adapter)
+**Phase 5 — Cloud Provider Implementations** (complete)
+
+**Next:** Phase 6 — Model Registry
 
 ---
 
 ## Memory Log
+
+### 2026-07-27 — Phase 5 Cloud Provider Implementations
+
+**Phase:** 5.0–5.7
+
+**Objective:** Full httpx REST adapters for OpenAI, Anthropic, and Gemini with shared HTTP infrastructure, extended DTOs, contract tests, and documentation.
+
+**Files created:**
+- `backend/src/providers/http_errors.py`, `http_auth.py`, `retry.py`, `streaming.py`, `validation.py`
+- Provider tests and fixtures under `backend/tests/unit/providers/`
+- `docs/architecture/ADR-018-extended-provider-dtos.md`, `ADR-019-cloud-provider-implementations.md`
+- `docs/providers/openai.md`, `anthropic.md`, `gemini.md`
+
+**Files modified:**
+- `backend/src/providers/base.py`, `exceptions.py`, `ollama.py`, `openai.py`, `anthropic.py`, `gemini.py`, `__init__.py`
+- `backend/src/services/provider_config_resolver.py`
+- `backend/src/core/config.py`, `core/enums.py`
+- `docs/ARCHITECTURE.md`, `ROADMAP.md`, `CHANGELOG.md`, `.env.example`
+
+**Decisions:**
+- httpx-only transport (no vendor SDKs); OpenAI Chat Completions API first.
+- Shared `HTTPErrorMapper`, retry, streaming parsers, model-list cache.
+- Anthropic embeddings raise `UnsupportedCapabilityError`.
+- Gemini safety settings via `ChatRequest.provider_options`.
+- ROADMAP renumbered: Phase 5 = cloud providers; Model Registry → Phase 6.
+
+**Verification:** 115 unit tests passed.
+
+**Next task:** Phase 6 — Model Registry.
+
+### 2026-07-27 — Phase 4.6 Provider Skeletons
+
+**Phase:** 4.6
+
+**Objective:** Register OpenAI, Anthropic, and Gemini as production-ready skeleton adapters. Only Ollama remains fully functional.
+
+**Files created:**
+- `backend/src/providers/openai.py`, `anthropic.py`, `gemini.py`, `http_mixin.py`
+- `backend/tests/unit/providers/test_provider_skeletons.py`
+- `docs/architecture/ADR-017-provider-skeletons.md`
+
+**Files modified:**
+- `backend/src/providers/ollama.py`, `__init__.py`
+- `backend/src/services/ai_service.py`
+- `docs/ARCHITECTURE.md`, `PROJECT_MEMORY.md`, `CHANGELOG.md`, `ROADMAP.md`
+
+**Decisions:**
+- Skeletons register via `register_provider()` at import; `NotImplementedError` for unimplemented methods.
+- `health_check()` returns `healthy=False` instead of raising — graceful degradation for probes.
+- `HTTPProviderMixin` shared across HTTP providers; Ollama refactored without behavior change.
+- Providers remain independent — no cross-imports between vendor modules.
+
+**Verification:** 76 unit tests passed (29 skeleton + 47 existing).
+
+**Next task:** Implement OpenAI / Anthropic / Gemini API calls (4.7).
+
+### 2026-07-27 — Phase 4.5 Database-Backed Provider Resolution
+
+**Phase:** 4.5
+
+**Objective:** Replace settings-only provider/model selection with database-backed resolution via existing repositories. No API, schema, route, or provider implementation changes.
+
+**Files created:**
+- `backend/src/services/provider_resolver.py`, `provider_config_resolver.py`, `provider_resolution_coordinator.py`, `resolution_types.py`
+- `backend/src/core/provider_resolution_cache.py`
+- `backend/tests/unit/services/test_provider_resolution.py`
+- `docs/architecture/ADR-016-provider-resolution.md`
+
+**Files modified:**
+- `backend/src/services/ai_service.py`
+- `backend/src/repositories/provider_repository.py`
+- `backend/src/core/config.py`
+- `docs/ARCHITECTURE.md`, `PROJECT_MEMORY.md`, `CHANGELOG.md`, `ROADMAP.md`
+
+**Decisions:**
+- Ordered strategy chain for provider precedence (request → DB → settings → hardcoded).
+- `ProviderConfigResolver` owns provider-specific constructor kwargs; `AIService` stays agnostic.
+- TTL cache stores configuration snapshots only — never provider instances.
+- `ProviderResolver` is FastAPI-independent for CLI/worker reuse.
+
+**Verification:** 47 unit tests passed.
+
+**Next task:** Additional provider adapters (4.6) or Phase 5 model registry enhancements.
+
+### 2026-07-27 — Phase 4.4 Provider Service Integration
+
+**Phase:** 4.4
+
+**Objective:** Route AI operations through `ProviderFactory` / `BaseProvider` via `AIService`. No API, schema, repository, or route changes.
+
+**Files created:**
+- `backend/src/services/ai_service.py`, `llm_adapter.py`
+- `backend/tests/unit/services/test_ai_service.py`
+- `docs/architecture/ADR-015-provider-service-integration.md`
+
+**Files modified:**
+- `backend/src/services/chat_service.py`
+- `backend/src/api/dependencies.py`
+- `backend/src/core/config.py`, `backend/src/core/lifespan.py`
+- `docs/ARCHITECTURE.md`, `PROJECT_MEMORY.md`, `CHANGELOG.md`, `ROADMAP.md`
+
+**Decisions:**
+- `AIService` resolves provider/model from settings (`DEFAULT_PROVIDER`, `DEFAULT_MODEL`); DB lookup deferred.
+- `_execute_provider_call` centralizes logging, timing, error mapping, and provider cleanup.
+- `LLMHealthAdapter` preserves `/health` route contract without route edits.
+- Legacy `OllamaService` retained but unwired.
+
+**Verification:** 35 unit tests passed (9 AIService + 26 provider).
+
+**Next task:** Database-backed provider/model resolution (Phase 5) or additional provider adapters (4.5).
+
+### 2026-07-27 — Phase 4.3 Ollama Provider Adapter
+
+**Phase:** 4.3
+
+**Objective:** First concrete `BaseProvider` implementation using Ollama REST via httpx. No service/route/DI changes.
+
+**Files created:**
+- `backend/src/providers/ollama.py`
+- `backend/tests/unit/providers/test_ollama_provider.py`
+- `docs/architecture/ADR-014-ollama-provider.md`
+
+**Files modified:**
+- `backend/src/providers/__init__.py`, `backend/pyproject.toml`
+- `docs/ARCHITECTURE.md`, `PROJECT_MEMORY.md`, `CHANGELOG.md`, `ROADMAP.md`
+
+**Decisions:**
+- httpx over `ollama` SDK for uniform transport across future adapters.
+- Provider owns HTTP lifecycle only; business logic stays in services.
+- `register_provider(OllamaProvider)` at module import for self-registration.
+- ADR numbered 014 (ADR-004 slot reserved for Phase 5 model registry).
+
+**Verification:** 26 provider unit tests passed (14 Ollama + 12 registry).
+
+**Next task:** Wire `OllamaProvider` into services/DI, or add OpenAI/Anthropic adapters (4.4).
 
 ### 2026-07-24 — Phase 4.2 Provider Registry & Factory
 

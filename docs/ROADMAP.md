@@ -30,9 +30,9 @@ The gateway is **infrastructure**, not a chatbot or coding assistant.
 
 **Phase 3 — Persistence Layer** (complete)
 
-Completed: **Phase 3 — Persistence Layer**
+Completed: **Phase 4 — Multi-Provider Architecture**, **Phase 5 — Cloud Provider Implementations**
 
-In progress: **Phase 4 — Multi-Provider Architecture** (4.2 complete; next: Ollama adapter)
+Next: **Phase 6 — Model Registry**
 
 ---
 
@@ -85,8 +85,12 @@ In progress: **Phase 4 — Multi-Provider Architecture** (4.2 complete; next: Ol
 |-----------|--------|-------------|
 | 4.1 Provider Abstraction | ✅ | `BaseProvider`, exception hierarchy, normalized DTOs |
 | 4.2 Provider Registry & Factory | ✅ | `ProviderRegistry`, `ProviderFactory`, `register_provider` |
-| 4.3 Ollama Adapter | Planned | `OllamaProvider` implementing `BaseProvider` |
-| 4.4 OpenAI / Anthropic / Others | Planned | Additional provider adapters |
+| 4.3 Ollama Adapter | ✅ | `OllamaProvider`, REST mapping, respx unit tests |
+| 4.4 Service Integration | ✅ | `AIService`, factory DI, legacy adapter |
+| 4.5 Database Resolution | ✅ | `ProviderResolver`, config resolver, TTL cache |
+| 4.6 Provider Skeletons | ✅ | OpenAI, Anthropic, Gemini skeletons; `HTTPProviderMixin` |
+
+**Phase 4 complete.** Cloud vendor API integration moved to Phase 5.
 
 **Phase 4.1 deliverables:**
 - `backend/src/providers/` — `BaseProvider` ABC, DTOs, `ProviderError` hierarchy
@@ -97,98 +101,138 @@ In progress: **Phase 4 — Multi-Provider Architecture** (4.2 complete; next: Ol
 - `backend/src/providers/factory.py` — `ProviderFactory` (no instance caching)
 - Unit tests in `backend/tests/unit/providers/`
 
-**Planned capabilities:**
-- OpenAI, Anthropic, Gemini implementations
-- Azure OpenAI and AWS Bedrock adapters
-- Provider-specific configuration and error mapping
-- Unified response normalization
+**Phase 4.3 deliverables:**
+- `backend/src/providers/ollama.py` — `OllamaProvider` with httpx REST adapter
+- respx unit tests; auto-registration on import
+- [ADR-014](architecture/ADR-014-ollama-provider.md)
 
-### Phase 5 — Model Registry
+**Phase 4.4 deliverables:**
+- `backend/src/services/ai_service.py` — provider-agnostic orchestration
+- `backend/src/services/llm_adapter.py` — health route backward compatibility
+- Unit tests in `backend/tests/unit/services/`
+- [ADR-015](architecture/ADR-015-provider-service-integration.md)
+
+**Phase 4.5 deliverables:**
+- `ProviderResolver`, `ProviderConfigResolver`, `ProviderResolutionCoordinator`
+- `ProviderRepository.get_default_provider()`, TTL cache in `core/`
+- [ADR-016](architecture/ADR-016-provider-resolution.md)
+
+**Phase 4.6 deliverables:**
+- `OpenAIProvider`, `AnthropicProvider`, `GeminiProvider` skeletons
+- `HTTPProviderMixin`; Ollama refactored to use mixin
+- Unit tests in `backend/tests/unit/providers/test_provider_skeletons.py`
+- [ADR-017](architecture/ADR-017-provider-skeletons.md)
+
+**Planned capabilities (future phases):**
+- Azure OpenAI and AWS Bedrock adapters
+- Provider-specific routing policies
+
+### Phase 5 — Cloud Provider Implementations ✅
+
+| Milestone | Status | Deliverables |
+|-----------|--------|-------------|
+| 5.0 Foundation | ✅ | Extended DTOs, shared HTTP modules, Ollama error refactor |
+| 5.1 OpenAI Core | ✅ | Chat, list_models, health_check |
+| 5.2 OpenAI Advanced | ✅ | Streaming, vision, tools, JSON |
+| 5.3 OpenAI Embeddings | ✅ | Embeddings, validate_model |
+| 5.4 Anthropic | ✅ | Messages API adapter |
+| 5.5 Gemini | ✅ | Generate Content adapter |
+| 5.6 Parity | ✅ | Contract tests, `ProviderType` enum |
+| 5.7 Documentation | ✅ | ADR-018/019, provider guides |
+
+**Deliverables:**
+- Full `OpenAIProvider`, `AnthropicProvider`, `GeminiProvider` (httpx REST)
+- Shared: `http_errors`, `http_auth`, `retry`, `streaming`, `validation`
+- 115 provider unit tests (respx)
+- [ADR-018](architecture/ADR-018-extended-provider-dtos.md), [ADR-019](architecture/ADR-019-cloud-provider-implementations.md)
+- Provider configuration guides in `docs/providers/`
+
+### Phase 6 — Model Registry
 
 - Database-backed model catalog
 - Capability metadata (chat, embed, vision)
 - Default model per provider
 
-### Phase 6 — Routing Engine
+### Phase 7 — Routing Engine
 
 - Route requests by model, cost, latency, or policy
 - Fallback chains across providers
 
-### Phase 7 — Streaming Engine
+### Phase 8 — Streaming Engine
 
 - Server-Sent Events (SSE) for chat completions
 - Provider-agnostic streaming interface
 
-### Phase 8 — Authentication & Security
+### Phase 9 — Authentication & Security
 
 - API key management
 - JWT / OAuth support
 - Rate limiting and tenant isolation
 
-### Phase 9 — Redis
+### Phase 10 — Redis
 
 - Response caching
 - Session state
 - Rate limit counters
 
-### Phase 10 — Vector Database (Qdrant)
+### Phase 11 — Vector Database (Qdrant)
 
 - Embedding storage and retrieval
 - Collection management
 
-### Phase 11 — RAG
+### Phase 12 — RAG
 
 - Document ingestion pipeline
 - Retrieval-augmented generation endpoints
 
-### Phase 12 — MCP
+### Phase 13 — MCP
 
 - Model Context Protocol integration
 
-### Phase 13 — Function Calling
+### Phase 14 — Function Calling
 
 - Tool definition and execution framework
 
-### Phase 14 — Agents
+### Phase 15 — Agents
 
 - Multi-step agent orchestration
 
-### Phase 15 — Workflow Engine
+### Phase 16 — Workflow Engine
 
 - Composable AI workflow definitions
 
-### Phase 16 — Observability
+### Phase 17 — Observability
 
 - Prometheus metrics, Grafana dashboards
 - Distributed tracing, structured audit logs
 
-### Phase 17 — Performance
+### Phase 18 — Performance
 
 - Connection pooling tuning, caching strategies
 - Load testing and benchmarking
 
-### Phase 18 — Production Infrastructure
+### Phase 19 — Production Infrastructure
 
 - Nginx reverse proxy, TLS termination
 - Health checks, graceful shutdown
 
-### Phase 19 — CI/CD
+### Phase 20 — CI/CD
 
 - GitHub Actions: lint, test, build, deploy
 
-### Phase 20 — Kubernetes
+### Phase 21 — Kubernetes
 
 - Helm charts, HPA, secrets management
 
-### Phase 21 — Cloud Deployment
+### Phase 22 — Cloud Deployment
 
 - AWS / GCP / Azure deployment guides
 
-### Phase 22 — SDKs
+### Phase 23 — SDKs
 
 - Python and TypeScript client libraries
 
-### Phase 23 — Enterprise Features
+### Phase 24 — Enterprise Features
 
 - Multi-tenancy, billing, admin dashboard
 
@@ -211,11 +255,13 @@ In progress: **Phase 4 — Multi-Provider Architecture** (4.2 complete; next: Ol
 | 3.9 — Unit of Work | ✅ |
 | 3.10 — Persistence Layer Testing | ✅ |
 | 3.11 — Persistence Hardening | ✅ |
+| 4 — Multi-Provider Architecture | ✅ |
+| 5 — Cloud Provider Implementations | ✅ |
 
 ---
 
 ## Upcoming (Next 3 Tasks)
 
-1. **Phase 4** — Multi-provider architecture
-2. **Phase 5** — Model registry
-3. **Phase 6** — Intelligent routing
+1. **Phase 6** — Model registry
+2. **Phase 7** — Intelligent routing
+3. **Phase 8** — Gateway streaming (SSE at HTTP layer)

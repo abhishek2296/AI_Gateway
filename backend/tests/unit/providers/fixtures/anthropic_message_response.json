@@ -1,0 +1,7 @@
+{
+  "id": "msg_fixture",
+  "model": "claude-3-5-sonnet-20241022",
+  "content": [{"type": "text", "text": "Hello"}],
+  "stop_reason": "end_turn",
+  "usage": {"input_tokens": 12, "output_tokens": 4}
+}

@@ -20,6 +20,18 @@ class Settings(BaseSettings):
     OLLAMA_HOST: str = "http://localhost:11434"
     OLLAMA_MODEL: str = "qwen3:8b"
 
+    # Provider defaults and resolution cache
+    DEFAULT_PROVIDER: str = "ollama"
+    DEFAULT_MODEL: str = "qwen3:8b"
+    PROVIDER_RESOLUTION_CACHE_TTL_SECONDS: float = 60.0
+
+    # Provider HTTP retry and model cache
+    PROVIDER_HTTP_MAX_RETRIES: int = 3
+    PROVIDER_HTTP_RETRY_BASE_DELAY_SECONDS: float = 0.5
+    PROVIDER_HTTP_RETRY_MAX_DELAY_SECONDS: float = 8.0
+    PROVIDER_MODEL_LIST_CACHE_TTL_SECONDS: float = 300.0
+    ANTHROPIC_API_VERSION: str = "2023-06-01"
+
     # Logging
     LOG_LEVEL: str = "INFO"
 

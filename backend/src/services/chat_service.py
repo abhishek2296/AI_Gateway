@@ -1,11 +1,11 @@
-from src.services.base_llm import BaseLLMService
+from src.services.ai_service import AIService
 
 
 class ChatService:
+    """HTTP-facing chat orchestration backed by the provider-agnostic AIService."""
 
-    def __init__(self, llm: BaseLLMService):
-        self.llm = llm
+    def __init__(self, ai_service: AIService) -> None:
+        self._ai_service = ai_service
 
     async def chat(self, message: str):
-
-        return await self.llm.chat(message)
+        return await self._ai_service.chat(message)
