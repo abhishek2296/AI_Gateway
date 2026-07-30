@@ -10,7 +10,23 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- `backend/src/registry/` — Phase 6.1 model metadata layer (`ProviderType`, `ModelCapability`, `ModelInfo`, validation exceptions)
+- `backend/src/registry/base.py` — Phase 6.2 abstract `BaseModelRegistry` async storage contract
+- `backend/src/registry/memory.py` — Phase 6.3 thread-safe in-memory registry
+- `backend/src/registry/filters.py`, `mappers.py` — filtering and provider/ORM mapping
+- `backend/src/services/model_catalog_loader.py`, `model_registry_service.py`
+- `backend/src/schemas/models.py`, `backend/src/api/routes/models.py` — catalog HTTP API
+- Registry exceptions: `ModelNotFoundError`, `ModelAlreadyRegisteredError`, `ModelDisabledError`, `AmbiguousModelError`
+- HTTP exceptions for catalog routes (`ModelNotFoundHTTPException`, etc.)
+- Chat: optional `model`/`provider` on `ChatRequest`; registry-only resolution in `AIService`
+- ADR-004 model registry architecture
+- Unit tests: `backend/tests/unit/registry/test_registry_models.py`, `test_registry_base.py`
+- `.cursor/rules/09-docstring-standards.mdc` — mandatory detailed docstring/comment standard (Args/Returns/Raises/Example) for all Python code
 - Engineering standards bootstrap: Cursor rules (`.cursor/rules/00`–`08`)
+
+### Documentation
+
+- Codebase-wide docstring pass: expanded module/class/function docstrings (Google-style Args/Returns/Raises/Example) and added non-obvious-intent inline comments across every existing `backend/src` and `backend/tests` Python file (core, models, repositories, services, providers, api, schemas, middleware, unit_of_work, main.py, alembic migrations, and all unit/integration tests). Documentation-only — no behavior, signatures, schemas, or test logic changed; full non-integration suite (125 tests) verified green after the pass.
 - Project documentation under `docs/`
 - Architecture Decision Records (ADR stubs / docs)
 - `backend/Dockerfile` — multi-stage dev/prod targets with uv

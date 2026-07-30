@@ -1,0 +1,74 @@
+---
+description: Detailed docstring and comment standards for all Python code
+globs: backend/**/*.py
+alwaysApply: true
+---
+
+# Docstring & Comment Standards
+
+Every module, class, and function/method must carry a clear, informative
+docstring — not just a one-line label. Write for a reader who has never seen
+the code before.
+
+## Required for every module
+
+A module-level `"""..."""` docstring explaining what the file is for and how
+it fits into the surrounding layer.
+
+## Required for every class
+
+- What the class represents and why it exists.
+- Key attributes (if a dataclass/DTO), with meaning and valid values.
+- A short `Example:` block showing realistic construction/usage.
+
+## Required for every function/method
+
+- One-line summary, then more detail if the logic is non-obvious.
+- `Args:` — each parameter, what it means, valid values/edge cases.
+- `Returns:` — what comes back and what it means.
+- `Raises:` — every exception type the function can raise and when.
+- `Example:` — a short, runnable usage example. Include the failure case too
+  when the function validates input (show what triggers the exception).
+
+```python
+def parse_page_size(value: str, *, default: int = 20) -> int:
+    """
+    Parse a "page size" query parameter into a bounded positive integer.
+
+    Args:
+        value: Raw query string value, e.g. "50". Empty string uses `default`.
+        default: Value to use when `value` is empty. Keyword-only so call
+            sites read clearly.
+
+    Returns:
+        A positive integer, clamped to the [1, 100] range.
+
+    Raises:
+        ValueError: If `value` is non-empty and not a valid integer.
+
+    Example:
+        >>> parse_page_size("50")
+        50
+        >>> parse_page_size("", default=20)
+        20
+        >>> parse_page_size("9999")
+        100
+    """
+```
+
+## Inline comments
+
+Add short inline comments only where the *intent* is non-obvious (a
+workaround, a validation edge case, a trade-off) — never comments that just
+restate what the line does. Prefer multi-line comments over a wall of
+single-liners when explaining a whole block's reasoning.
+
+## Scope
+
+Apply this standard to **every** new or edited file — production code
+(`src/`), tests, Alembic migrations, and scripts. When editing an existing
+file for any reason, upgrade its docstrings to this standard as part of the
+change (not a separate task) if they are missing or terse.
+
+Reference implementation: `backend/src/registry/` (`models.py`,
+`exceptions.py`, `__init__.py`) and `backend/tests/unit/registry/`.

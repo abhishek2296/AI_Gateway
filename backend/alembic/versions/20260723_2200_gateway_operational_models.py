@@ -4,6 +4,20 @@ Revision ID: b7e4d9f21c03
 Revises: a3f6c2d18e01
 Create Date: 2026-07-23 22:00:00.000000
 
+Adds the three "operational" tables that support running the gateway in
+production, layered on top of the domain schema from ``a3f6c2d18e01``:
+
+- ``api_keys``       — references to provider credentials (never the raw
+                        secret itself; only which env var holds it).
+- ``provider_health`` — point-in-time health check results per provider.
+- ``usage_records``   — per-request billing/telemetry data (token counts,
+                        cost, latency, status).
+
+``usage_records`` intentionally uses ``ON DELETE RESTRICT`` for its
+provider/model foreign keys (rather than ``CASCADE`` like the domain
+tables) because billing history must never be silently destroyed just by
+deleting a provider or model — see ``ON DELETE SET NULL``/``RESTRICT``
+comments in ``upgrade()`` below for the full rationale per column.
 """
 from typing import Sequence, Union
 
@@ -110,7 +124,15 @@ def upgrade() -> None:
             server_default=sa.text("now()"),
             nullable=False,
         ),
+        # RESTRICT on provider/model: usage/billing history must survive even
+        # if the provider or model that generated it is later removed —
+        # deleting a provider/model with existing usage records is blocked
+        # rather than silently discarding financial history.
         sa.ForeignKeyConstraint(["ai_model_id"], ["ai_models.id"], ondelete="RESTRICT"),
+        # SET NULL on chat_session: unlike provider/model, a usage record's
+        # link to its originating conversation is not essential to keep the
+        # record meaningful, so the session can be deleted freely and the
+        # usage record just loses that (optional) association.
         sa.ForeignKeyConstraint(["chat_session_id"], ["chat_sessions.id"], ondelete="SET NULL"),
         sa.ForeignKeyConstraint(["provider_id"], ["providers.id"], ondelete="RESTRICT"),
         sa.PrimaryKeyConstraint("id"),

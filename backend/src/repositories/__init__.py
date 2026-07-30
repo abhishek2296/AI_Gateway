@@ -1,4 +1,21 @@
-"""Async repository layer for AI Gateway persistence."""
+"""
+Async repository layer for AI Gateway persistence.
+
+This package implements the Repository pattern (see
+``01-engineering-principles.mdc``'s layer boundaries) on top of SQLAlchemy
+2.x's async ORM: every persisted entity in ``src/models/`` has a matching
+repository here that owns all reads/writes for that table. Services and the
+future Unit of Work layer depend on these repositories rather than importing
+SQLAlchemy directly, keeping query logic centralized and testable.
+
+Every repository extends :class:`~src.repositories.base.BaseRepository` for
+generic CRUD (create/get/list/update/delete/count/exists) and adds only the
+query methods specific to its entity — e.g.
+:meth:`~src.repositories.provider_repository.ProviderRepository.get_by_name`.
+Re-exporting every repository class here lets callers write
+``from src.repositories import ProviderRepository`` instead of reaching into
+each submodule individually.
+"""
 
 from src.repositories.ai_model_configuration_repository import AIModelConfigurationRepository
 from src.repositories.ai_model_repository import AIModelRepository

@@ -1,4 +1,13 @@
-"""Unit tests for OllamaProvider using respx mocks."""
+"""
+Unit tests for `OllamaProvider` (`src/providers/ollama.py`) using respx mocks.
+
+Covers request/response mapping for chat (including streaming), embeddings,
+health checks, and model listing against Ollama's native JSON API, plus how
+HTTP failures (404/500/timeout/connection error) are translated into the
+gateway's provider exception hierarchy so callers never see raw `httpx`
+exceptions. All HTTP calls are intercepted with `respx` -- no real Ollama
+server is contacted.
+"""
 
 from __future__ import annotations
 
@@ -25,6 +34,7 @@ BASE_URL = "http://ollama.test"
 
 @pytest.fixture
 def ollama(respx_mock: respx.MockRouter) -> OllamaProvider:
+    """Return an `OllamaProvider` pointed at a fake base URL intercepted by `respx_mock`."""
     respx_mock.base_url = BASE_URL
     return OllamaProvider(base_url=BASE_URL)
 
@@ -32,6 +42,15 @@ def ollama(respx_mock: respx.MockRouter) -> OllamaProvider:
 @respx.mock
 @pytest.mark.asyncio
 async def test_chat_success(ollama: OllamaProvider, respx_mock: respx.MockRouter) -> None:
+    """
+    A successful non-streaming chat call maps Ollama's response fields into `ChatResponse`.
+
+    Also verifies the *outgoing* request body: Ollama's non-streaming API
+    requires an explicit `"stream": false` flag, and `temperature`/`max_tokens`
+    must be translated into Ollama's own `temperature`/`num_predict` option
+    names -- getting either wrong would silently produce wrong provider
+    behavior (e.g. an accidental streaming response) rather than an error.
+    """
     respx_mock.post("/api/chat").mock(
         return_value=httpx.Response(
             200,
@@ -65,6 +84,9 @@ async def test_chat_success(ollama: OllamaProvider, respx_mock: respx.MockRouter
 
     request = respx_mock.calls.last.request
     body = request.read()
+    # Accept both spaced and compact JSON serialization: the assertion cares
+    # about which fields/values were sent, not the exact whitespace style of
+    # whichever JSON encoder produced the request body.
     assert b'"stream": false' in body or b'"stream":false' in body
     assert b'"temperature": 0.7' in body or b'"temperature":0.7' in body
     assert b'"num_predict": 100' in body or b'"num_predict":100' in body
@@ -76,6 +98,14 @@ async def test_stream_chat_yields_incremental_chunks(
     ollama: OllamaProvider,
     respx_mock: respx.MockRouter,
 ) -> None:
+    """
+    Streaming chat yields one chunk per NDJSON line, and the final chunk carries the finish reason.
+
+    Ollama streams newline-delimited JSON objects rather than SSE; the last
+    line (`"done":true`) carries `done_reason`/token-count fields that must
+    surface on the terminal `ChatStreamChunk.finish_reason`, so callers can
+    tell when the stream has ended and why.
+    """
     stream_body = (
         '{"model":"qwen3:8b","message":{"role":"assistant","content":"Hel"},"done":false}\n'
         '{"model":"qwen3:8b","message":{"role":"assistant","content":"lo"},"done":false}\n'
@@ -105,6 +135,7 @@ async def test_stream_chat_yields_incremental_chunks(
 @respx.mock
 @pytest.mark.asyncio
 async def test_embeddings_success(ollama: OllamaProvider, respx_mock: respx.MockRouter) -> None:
+    """A successful embeddings call maps Ollama's response into a normalized `EmbeddingsResponse`."""
     respx_mock.post("/api/embeddings").mock(
         return_value=httpx.Response(
             200,
@@ -129,6 +160,7 @@ async def test_embeddings_success(ollama: OllamaProvider, respx_mock: respx.Mock
 @respx.mock
 @pytest.mark.asyncio
 async def test_health_check_healthy(ollama: OllamaProvider, respx_mock: respx.MockRouter) -> None:
+    """A reachable Ollama server reports healthy, with model count and latency populated."""
     respx_mock.get("/api/tags").mock(
         return_value=httpx.Response(
             200,
@@ -150,6 +182,13 @@ async def test_health_check_unhealthy_on_connection_failure(
     ollama: OllamaProvider,
     respx_mock: respx.MockRouter,
 ) -> None:
+    """
+    `health_check()` reports unhealthy (not an exception) when Ollama is unreachable.
+
+    Health checks must degrade gracefully rather than raising, since callers
+    (e.g. a `/health` endpoint or startup probe) need a boolean result they
+    can report even when the underlying service is completely down.
+    """
     respx_mock.get("/api/tags").mock(side_effect=httpx.ConnectError("connection refused"))
 
     result = await ollama.health_check()
@@ -161,6 +200,12 @@ async def test_health_check_unhealthy_on_connection_failure(
 @respx.mock
 @pytest.mark.asyncio
 async def test_list_models(ollama: OllamaProvider, respx_mock: respx.MockRouter) -> None:
+    """
+    `list_models()` maps Ollama's `/api/tags` entries into normalized `ModelInfo` objects.
+
+    Also confirms `supports_streaming` defaults to `True` for Ollama models,
+    since every Ollama chat model supports streaming responses natively.
+    """
     respx_mock.get("/api/tags").mock(
         return_value=httpx.Response(
             200,
@@ -191,6 +236,7 @@ async def test_chat_404_raises_model_not_found(
     ollama: OllamaProvider,
     respx_mock: respx.MockRouter,
 ) -> None:
+    """A 404 from Ollama (unknown model) is mapped to `ModelNotFoundError`, not a raw HTTP error."""
     respx_mock.post("/api/chat").mock(return_value=httpx.Response(404, json={"error": "not found"}))
 
     with pytest.raises(ModelNotFoundError):
@@ -208,6 +254,7 @@ async def test_chat_500_raises_provider_unavailable(
     ollama: OllamaProvider,
     respx_mock: respx.MockRouter,
 ) -> None:
+    """A 5xx from Ollama is mapped to `ProviderUnavailableError`, signaling a transient server issue."""
     respx_mock.post("/api/chat").mock(return_value=httpx.Response(500, text="internal error"))
 
     with pytest.raises(ProviderUnavailableError):
@@ -225,6 +272,7 @@ async def test_chat_timeout_raises_provider_unavailable(
     ollama: OllamaProvider,
     respx_mock: respx.MockRouter,
 ) -> None:
+    """A request timeout (no response received at all) is also mapped to `ProviderUnavailableError`."""
     respx_mock.post("/api/chat").mock(side_effect=httpx.TimeoutException("timed out"))
 
     with pytest.raises(ProviderUnavailableError):
@@ -242,6 +290,7 @@ async def test_chat_connection_failure_raises_provider_unavailable(
     ollama: OllamaProvider,
     respx_mock: respx.MockRouter,
 ) -> None:
+    """A connection-level failure (e.g. server not running) is mapped to `ProviderUnavailableError`."""
     respx_mock.post("/api/chat").mock(side_effect=httpx.ConnectError("connection refused"))
 
     with pytest.raises(ProviderUnavailableError):
@@ -255,6 +304,7 @@ async def test_chat_connection_failure_raises_provider_unavailable(
 
 @pytest.mark.asyncio
 async def test_close_closes_owned_client() -> None:
+    """`close()` closes the HTTP client when the provider created it itself (no external client passed)."""
     provider = OllamaProvider(base_url=BASE_URL)
     provider._client.aclose = AsyncMock()  # noqa: SLF001
 
@@ -265,6 +315,7 @@ async def test_close_closes_owned_client() -> None:
 
 @pytest.mark.asyncio
 async def test_close_does_not_close_external_client() -> None:
+    """`close()` must NOT close an `httpx.AsyncClient` supplied by the caller, since they own its lifecycle."""
     external_client = httpx.AsyncClient(base_url=BASE_URL)
     external_client.aclose = AsyncMock()
     provider = OllamaProvider(base_url=BASE_URL, http_client=external_client)
@@ -277,6 +328,7 @@ async def test_close_does_not_close_external_client() -> None:
 
 @pytest.mark.asyncio
 async def test_async_context_manager_closes_owned_client() -> None:
+    """Using `OllamaProvider` as an async context manager closes its owned client on exit."""
     async with OllamaProvider(base_url=BASE_URL) as provider:
         provider._client.aclose = AsyncMock()  # noqa: SLF001
         assert isinstance(provider, OllamaProvider)
@@ -290,6 +342,15 @@ async def test_chat_does_not_leak_httpx_exceptions(
     ollama: OllamaProvider,
     respx_mock: respx.MockRouter,
 ) -> None:
+    """
+    The raised error is a `ProviderError`, never a raw `httpx.HTTPError` subclass.
+
+    This is an abstraction-boundary check: callers of `BaseProvider.chat()`
+    should only ever need to catch the gateway's own exception hierarchy,
+    never `httpx`-specific types. `isinstance(exc, httpx.HTTPError)` being
+    `False` catches a regression where a raw httpx exception happened to
+    also be a `ProviderError` subclass (or wasn't wrapped at all).
+    """
     respx_mock.post("/api/chat").mock(return_value=httpx.Response(502, text="bad gateway"))
 
     with pytest.raises(ProviderError) as exc_info:

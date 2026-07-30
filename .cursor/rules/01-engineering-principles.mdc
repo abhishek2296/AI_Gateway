@@ -36,7 +36,8 @@ alwaysApply: true
 ## Code Quality
 
 - Use type hints and SQLAlchemy 2.x `Mapped` / `mapped_column` for ORM.
-- Use module-level docstrings; comment only non-obvious intent.
+- Use detailed module/class/function docstrings (Args/Returns/Raises/Example)
+  per `09-docstring-standards.mdc`; comment inline only for non-obvious intent.
 - Use structured logging (`logging.getLogger(__name__)`).
 - Return `APIResponse[T]` for success; use registered exception handlers for errors.
 

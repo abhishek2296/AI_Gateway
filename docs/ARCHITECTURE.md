@@ -59,6 +59,7 @@ sequenceDiagram
 | Unit of Work | `unit_of_work/` | Transaction coordination, repository registry |
 | Schemas | `schemas/` | Pydantic request/response contracts |
 | Models | `models/` | SQLAlchemy ORM entities |
+| Registry | `registry/` | Model catalog metadata types and validation (Phase 6.1) |
 | Core | `core/` | Config, DB engine, logging, lifespan |
 | Middleware | `middleware/` | Request ID, response timing |
 
@@ -226,6 +227,35 @@ See [ADR-018](architecture/ADR-018-extended-provider-dtos.md) and [ADR-019](arch
 OpenAI, Anthropic, and Gemini were initially registered as skeletons (Phase 4.6). Phase 5 replaced skeleton method bodies with full REST implementations while preserving registry keys and `HTTPProviderMixin` lifecycle.
 
 See [ADR-017](architecture/ADR-017-provider-skeletons.md).
+
+---
+
+## Model Registry (Phase 6)
+
+Catalog metadata, storage, APIs, and chat integration live in `backend/src/registry/` and related services:
+
+```
+backend/src/registry/
+├── __init__.py
+├── base.py          # BaseModelRegistry ABC (filterable list)
+├── memory.py        # MemoryModelRegistry (default backend)
+├── filters.py       # ModelListFilters
+├── mappers.py       # provider DTO / ORM → registry ModelInfo
+├── models.py
+└── exceptions.py
+
+backend/src/services/
+├── model_catalog_loader.py   # startup population
+└── model_registry_service.py # runtime resolution + listing
+```
+
+**Startup flow:** `lifespan` → `ModelCatalogLoader.load()` → provider `list_models()` → DB overlay → settings default seed → `app.state.model_registry`.
+
+**Chat flow:** `POST /chat` → `ModelRegistryService.resolve_for_chat()` → validate enabled → `ProviderResolutionCoordinator` (connection config) → `BaseProvider.chat()`.
+
+**HTTP catalog:** `GET /models`, `GET /models/{name}?provider=`, `GET /providers/{provider}/models`.
+
+See [ADR-004](architecture/ADR-004-model-registry.md).
 
 ---
 

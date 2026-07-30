@@ -32,7 +32,7 @@ The gateway is **infrastructure**, not a chatbot or coding assistant.
 
 Completed: **Phase 4 — Multi-Provider Architecture**, **Phase 5 — Cloud Provider Implementations** (including 5.8 Dockerization)
 
-Next: **Phase 6 — Model Registry**
+Next: **Phase 7 — Routing Engine**
 
 ---
 
@@ -154,11 +154,45 @@ Next: **Phase 6 — Model Registry**
 - `backend/docker/entrypoint.sh` — wait for DB, Alembic migrate, exec uvicorn
 - Root `README.md` — Docker quick start and env reference
 
-### Phase 6 — Model Registry
+### Phase 6 — Model Registry ✅
 
-- Database-backed model catalog
-- Capability metadata (chat, embed, vision)
-- Default model per provider
+**6.1 — Model Metadata** ✅
+
+- `backend/src/registry/` — `ProviderType`, `ModelCapability`, immutable `ModelInfo` with validation
+- Registry exception hierarchy (`RegistryError`, `InvalidModelMetadataError`)
+
+**6.2 — Registry Interface** ✅
+
+- `backend/src/registry/base.py` — abstract `BaseModelRegistry` with filterable `list()`
+
+**6.3 — In-Memory Registry** ✅
+
+- `backend/src/registry/memory.py` — thread-safe `MemoryModelRegistry`
+
+**6.4 — Provider Registration** ✅
+
+- `ModelCatalogLoader` — startup sync from provider `list_models()` + DB overlay + settings seed
+
+**6.5 — Capability Filtering** ✅
+
+- `ModelListFilters` — provider, capability, enabled, streaming (AND semantics)
+
+**6.6 — Registry APIs** ✅
+
+- `GET /models`, `GET /models/{name}?provider=`, `GET /providers/{provider}/models`
+
+**6.7 — Chat Integration** ✅
+
+- Registry-only model resolution in `AIService`; optional `model`/`provider` on `ChatRequest`
+
+**6.8 — Testing & Documentation** ✅
+
+- Unit/API tests; ADR-004; architecture docs updated
+
+**Future (post–Phase 6):**
+
+- Redis and database-backed registry implementations
+- Capability-aware routing engine integration (Phase 7)
 
 ### Phase 7 — Routing Engine
 

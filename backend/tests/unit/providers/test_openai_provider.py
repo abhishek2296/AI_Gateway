@@ -1,4 +1,12 @@
-"""Unit tests for OpenAIProvider using respx mocks."""
+"""
+Unit tests for `OpenAIProvider` (`src/providers/openai.py`) using respx mocks.
+
+Covers OpenAI Chat Completions request/response mapping (including SSE
+streaming, tool calls, and vision/image parts), embeddings, model listing,
+and health checks, plus how OpenAI's HTTP error codes are translated into
+the gateway's provider exception hierarchy. All HTTP calls are intercepted
+with `respx` -- no real OpenAI API is contacted.
+"""
 
 from __future__ import annotations
 
@@ -27,6 +35,7 @@ BASE_URL = "https://api.openai.test"
 
 @pytest.fixture
 def openai(respx_mock: respx.MockRouter) -> OpenAIProvider:
+    """Return an `OpenAIProvider` with a fake API key, pointed at a base URL `respx_mock` intercepts."""
     respx_mock.base_url = BASE_URL
     return OpenAIProvider(api_key="test-key", base_url=f"{BASE_URL}/v1")
 
@@ -34,6 +43,12 @@ def openai(respx_mock: respx.MockRouter) -> OpenAIProvider:
 
 @pytest.mark.asyncio
 async def test_chat_success(openai: OpenAIProvider, respx_mock: respx.MockRouter) -> None:
+    """
+    A successful chat call maps OpenAI's response into `ChatResponse`, including the provider's own message id.
+
+    Also confirms the request carries the `Authorization: Bearer <api_key>`
+    header, since OpenAI's API rejects any request missing it.
+    """
     respx_mock.post("/v1/chat/completions").mock(
         return_value=httpx.Response(
             200,
@@ -89,6 +104,15 @@ async def test_chat_http_errors(
     status: int,
     expected: type[Exception],
 ) -> None:
+    """
+    Each OpenAI HTTP error status is mapped to the corresponding gateway exception type.
+
+    Parametrized over the four status codes callers most need to
+    distinguish: 401 (bad/expired API key), 404 (unknown model), 429 (rate
+    limited), and 500 (OpenAI-side outage) -- each requiring a different
+    caller response (fix credentials, fix model name, back off, or retry
+    later).
+    """
     respx_mock.post("/v1/chat/completions").mock(return_value=httpx.Response(status))
 
     with pytest.raises(expected):
@@ -103,6 +127,14 @@ async def test_stream_chat_yields_chunks(
     openai: OpenAIProvider,
     respx_mock: respx.MockRouter,
 ) -> None:
+    """
+    Streaming chat yields one chunk per SSE delta, and the terminal chunk carries `finish_reason`/`usage`.
+
+    The trailing `data: [DONE]\\n\\n` line is OpenAI's stream-termination
+    sentinel and must be silently consumed rather than yielded as a chunk;
+    only three content chunks are expected (`"Hel"`, `"lo"`, and the empty
+    final delta) even though four `data:` lines are sent.
+    """
     stream_body = (
         'data: {"choices":[{"delta":{"content":"Hel"},"index":0}]}\n\n'
         'data: {"choices":[{"delta":{"content":"lo"},"index":0}]}\n\n'
@@ -128,6 +160,15 @@ async def test_stream_chat_yields_chunks(
 
 @pytest.mark.asyncio
 async def test_chat_with_tools_and_vision(openai: OpenAIProvider, respx_mock: respx.MockRouter) -> None:
+    """
+    A request with an image part and a tool definition is serialized correctly, and a tool-call response is parsed back.
+
+    Confirms two independent capabilities at once: (1) `ImagePart` is
+    serialized into OpenAI's `image_url` content-part format in the outgoing
+    request body, and (2) `ToolDefinition`s are included as `tools` in the
+    request and a `tool_calls` response is decoded back into
+    `response.tool_calls`.
+    """
     route = respx_mock.post("/v1/chat/completions").mock(
         return_value=httpx.Response(
             200,
@@ -171,6 +212,9 @@ async def test_chat_with_tools_and_vision(openai: OpenAIProvider, respx_mock: re
     assert response.tool_calls is not None
     assert response.tool_calls[0].name == "get_weather"
     body = route.calls.last.request.read()
+    # Checking for the raw field names in the serialized JSON body (rather
+    # than fully deserializing it) is enough to confirm both features made
+    # it into the outgoing request payload.
     assert b"image_url" in body
     assert b"tools" in body
 
@@ -178,6 +222,7 @@ async def test_chat_with_tools_and_vision(openai: OpenAIProvider, respx_mock: re
 
 @pytest.mark.asyncio
 async def test_embeddings_success(openai: OpenAIProvider, respx_mock: respx.MockRouter) -> None:
+    """A successful embeddings call maps OpenAI's response into a normalized `EmbeddingsResponse`."""
     respx_mock.post("/v1/embeddings").mock(
         return_value=httpx.Response(
             200,
@@ -203,6 +248,12 @@ async def test_list_models_and_validate_model(
     openai: OpenAIProvider,
     respx_mock: respx.MockRouter,
 ) -> None:
+    """
+    `list_models()` returns every model OpenAI reports, and `validate_model()` checks membership by id.
+
+    `validate_model` lets callers cheaply verify a user-supplied model name
+    exists before attempting a chat call, avoiding a confusing 404 later.
+    """
     respx_mock.get("/v1/models").mock(
         return_value=httpx.Response(
             200,
@@ -219,6 +270,7 @@ async def test_list_models_and_validate_model(
 
 @pytest.mark.asyncio
 async def test_health_check_healthy(openai: OpenAIProvider, respx_mock: respx.MockRouter) -> None:
+    """A successful `/v1/models` call reports the provider healthy with the model count populated."""
     respx_mock.get("/v1/models").mock(
         return_value=httpx.Response(200, json={"data": [{"id": "gpt-4o"}]}),
     )
@@ -235,6 +287,13 @@ async def test_health_check_unhealthy_on_auth_failure(
     openai: OpenAIProvider,
     respx_mock: respx.MockRouter,
 ) -> None:
+    """
+    A 401 from `/v1/models` (invalid API key) reports unhealthy rather than raising.
+
+    Health checks must swallow the underlying `AuthenticationError` and
+    report a boolean status, since a misconfigured key is a valid (if
+    undesirable) state a caller should be able to detect rather than crash on.
+    """
     respx_mock.get("/v1/models").mock(return_value=httpx.Response(401))
 
     result = await openai.health_check()

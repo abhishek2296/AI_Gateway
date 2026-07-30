@@ -4,6 +4,17 @@ Revision ID: a3f6c2d18e01
 Revises:
 Create Date: 2026-07-23 21:08:00.000000
 
+This is the root migration (``down_revision=None``) — it creates the full
+initial set of AI Gateway domain tables in one pass: ``prompt_templates``,
+``providers``, ``ai_models``, ``provider_configurations``,
+``ai_model_configurations``, ``chat_sessions``, and ``messages``. Later
+migrations (``b7e4d9f21c03``, ``c8f5e2a31d04``, ``3864a2e32a0f``) build on
+top of this schema by adding operational tables and integrity constraints.
+
+Foreign keys generally cascade on delete (``ondelete="CASCADE"``) so that
+deleting a parent row (e.g. a ``Provider``) automatically removes its
+dependent configuration/model/session rows, since those child rows have no
+independent meaning without their parent.
 """
 from typing import Sequence, Union
 
@@ -80,6 +91,8 @@ def upgrade() -> None:
         sa.PrimaryKeyConstraint("id"),
     )
     op.create_index(op.f("ix_providers_is_active"), "providers", ["is_active"], unique=False)
+    # unique=True here (not a separate UniqueConstraint) both enforces
+    # uniqueness and serves as the lookup index for ProviderRepository.get_by_name.
     op.create_index(op.f("ix_providers_name"), "providers", ["name"], unique=True)
     op.create_index(op.f("ix_providers_provider_type"), "providers", ["provider_type"], unique=False)
 
@@ -212,6 +225,9 @@ def upgrade() -> None:
         sa.Column("system_prompt", sa.Text(), nullable=True),
         sa.Column("temperature_override", sa.Float(), nullable=True),
         sa.Column("max_tokens_override", sa.Integer(), nullable=True),
+        # Column is named "metadata" in the database, but the ORM maps it to
+        # the Python attribute `extra_metadata` (see src/models/chat_session.py)
+        # since "metadata" is reserved by SQLAlchemy's declarative Base.
         sa.Column("metadata", postgresql.JSONB(astext_type=sa.Text()), nullable=True),
         sa.Column("is_archived", sa.Boolean(), server_default=sa.text("false"), nullable=False),
         sa.Column(
@@ -226,6 +242,10 @@ def upgrade() -> None:
             server_default=sa.text("now()"),
             nullable=False,
         ),
+        # CASCADE on both FKs: chat_sessions are considered dependent on their
+        # provider/model configuration, so removing either wipes out sessions
+        # that referenced it (rather than leaving orphaned/dangling rows).
+        # This cascades further down to `messages` via its own FK below.
         sa.ForeignKeyConstraint(["ai_model_id"], ["ai_models.id"], ondelete="CASCADE"),
         sa.ForeignKeyConstraint(["provider_id"], ["providers.id"], ondelete="CASCADE"),
         sa.PrimaryKeyConstraint("id"),
@@ -233,6 +253,8 @@ def upgrade() -> None:
     op.create_index(op.f("ix_chat_sessions_ai_model_id"), "chat_sessions", ["ai_model_id"], unique=False)
     op.create_index(op.f("ix_chat_sessions_is_archived"), "chat_sessions", ["is_archived"], unique=False)
     op.create_index(op.f("ix_chat_sessions_provider_id"), "chat_sessions", ["provider_id"], unique=False)
+    # unique=True: session_uuid is the public-facing identifier clients use
+    # to reference a session, so it must never collide across rows.
     op.create_index(op.f("ix_chat_sessions_session_uuid"), "chat_sessions", ["session_uuid"], unique=True)
 
     op.create_table(
@@ -241,6 +263,8 @@ def upgrade() -> None:
         sa.Column("session_id", sa.Integer(), nullable=False),
         sa.Column("role", sa.String(length=50), nullable=False),
         sa.Column("content", sa.Text(), nullable=False),
+        # Same "metadata" -> `extra_metadata` ORM mapping rationale as on
+        # chat_sessions above.
         sa.Column("metadata", postgresql.JSONB(astext_type=sa.Text()), nullable=True),
         sa.Column("token_count", sa.Integer(), nullable=True),
         sa.Column("latency_ms", sa.Integer(), nullable=True),
@@ -268,6 +292,8 @@ def upgrade() -> None:
 
 def downgrade() -> None:
     """Drop all AI Gateway domain tables."""
+    # Tables are dropped in reverse-dependency order (children before
+    # parents) so no FK still points at an already-dropped table.
     op.drop_index(op.f("ix_messages_session_id"), table_name="messages")
     op.drop_index(op.f("ix_messages_role"), table_name="messages")
     op.drop_index(op.f("ix_messages_provider_response_id"), table_name="messages")

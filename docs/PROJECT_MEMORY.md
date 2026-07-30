@@ -81,13 +81,121 @@ backend/
 
 ## Current Work
 
-**Phase 5.8 — Dockerization** (complete)
+**Phase 6 — Model Registry** (6.1–6.8 complete)
 
-**Next:** Phase 6 — Model Registry
+**Next:** Phase 7 — Routing Engine
 
 ---
 
 ## Memory Log
+
+### 2026-07-30 — Phase 6.3–6.8 Model Registry (complete)
+
+**Phase:** 6.3–6.8
+
+**Objective:** Deliver full model registry: in-memory backend, startup provider catalog sync, filterable listing, REST APIs, registry-only chat integration, tests, and ADR-004.
+
+**Files created:**
+- `backend/src/registry/memory.py`, `filters.py`, `mappers.py`
+- `backend/src/services/model_catalog_loader.py`, `model_registry_service.py`
+- `backend/src/schemas/models.py`, `backend/src/api/routes/models.py`
+- Tests: `test_registry_memory.py`, `test_registry_filters.py`, `test_registry_mappers.py`, `test_model_registry_service.py`, `test_models_routes.py`
+- `docs/architecture/ADR-004-model-registry.md`
+
+**Files modified:**
+- `registry/base.py` (filterable `list()`), `exceptions.py`, `__init__.py`
+- `core/lifespan.py`, `api/dependencies.py`, `main.py`
+- `services/ai_service.py`, `chat_service.py`, `schemas/chat.py`, `api/routes/chat.py`
+- `core/exceptions.py`; docs updated
+
+**Decisions:**
+- Registry-only chat (user choice): `ModelRegistryService.resolve_for_chat()` is authoritative; coordinator builds connection kwargs only.
+- Provider `list_models()` is canonical for capabilities; DB overlays enabled/default/display.
+- Settings default always seeded at startup if missing.
+
+**Verification:** 145 non-integration unit tests pass.
+
+**Next task:** Phase 7 — Routing Engine.
+
+### 2026-07-30 — Phase 6.2 Registry Interface
+
+**Phase:** 6.2
+
+**Objective:** Define an abstract async storage contract for the model catalog so future backends (memory, Redis, database) share one interface.
+
+**Files created:**
+- `backend/src/registry/base.py` — `BaseModelRegistry` ABC with `register`, `unregister`, `get`, `list`, `exists`, `providers`, `clear`
+- `backend/tests/unit/registry/test_registry_base.py` — ABC + stub implementation contract tests
+
+**Files modified:**
+- `backend/src/registry/exceptions.py` — `ModelNotFoundError`, `ModelAlreadyRegisteredError`
+- `backend/src/registry/__init__.py` — export new symbols
+- `docs/ARCHITECTURE.md`, `PROJECT_MEMORY.md`, `CHANGELOG.md`, `ROADMAP.md`
+
+**Decisions:**
+- Methods are **async** so Redis and database implementations align with the rest of the async stack without a sync/async split.
+- Model identity is **`(provider, name)`** — matches provider API identifiers and ORM `(provider_id, model_name)` uniqueness.
+- `register` raises on duplicate keys; no silent overwrite at the abstract contract level.
+- No concrete storage implementation in this milestone (6.3+).
+
+**Verification:** 16 registry unit tests pass (10 metadata + 6 interface).
+
+**Next task:** Phase 6.3 — `MemoryModelRegistry` and/or database-backed registry.
+
+### 2026-07-30 — Codebase-Wide Docstring Standardization
+
+**Phase:** Documentation hardening (cross-cutting, not tied to a roadmap phase)
+
+**Objective:** Bring every existing Python file up to a detailed docstring/comment standard (module, class, and function/method docstrings with Args/Returns/Raises/Example sections; inline comments only for non-obvious intent), using `backend/src/registry/` as the reference implementation, and codify the standard as a permanent rule for all future work.
+
+**Files created:**
+- `.cursor/rules/09-docstring-standards.mdc` — new always-applied rule (`backend/**/*.py`) mandating this docstring depth/format for every new or edited file going forward.
+
+**Files modified (documentation-only, no logic/schema/behavior changes):**
+- `core/`: `handlers.py`, `config.py`, `enums.py`, `provider_resolution_cache.py`, `lifespan.py`, `session.py`, `exceptions.py`, `base.py`, `database.py`, `logging.py`
+- `models/`: `base.py`, `mixins.py`, `__init__.py`, `provider.py`, `provider_configuration.py`, `provider_health.py`, `ai_model.py`, `ai_model_configuration.py`, `chat_session.py`, `message.py`, `api_key.py`, `usage_record.py`, `prompt_template.py`
+- `repositories/`: `base.py`, `__init__.py`, and all 10 entity repositories
+- `services/`: `resolution_types.py`, `provider_resolver.py`, `provider_config_resolver.py`, `chat_service.py`, `provider_resolution_coordinator.py`, `ai_service.py`, `ollama_service.py`, `llm_adapter.py`, `base_llm.py`
+- `providers/`: `base.py`, `validation.py`, `http_mixin.py`, `exceptions.py`, `ollama.py`, `streaming.py`, `__init__.py`, `retry.py`, `openai.py`, `factory.py`, `anthropic.py`, `gemini.py`, `http_auth.py`, `registry.py`, `http_errors.py`
+- `api/dependencies.py`, `api/routes/chat.py`, `api/routes/health.py`, `schemas/health.py`, `schemas/common.py`, `schemas/chat.py`, `middleware/request_id.py`, `middleware/timing.py`, `unit_of_work/base.py`, `unit_of_work/__init__.py`, `unit_of_work/unit_of_work.py`, `main.py`
+- `backend/tests/unit/providers/` (11 files), `backend/tests/unit/services/test_provider_resolution.py`, `test_ai_service.py`, `backend/tests/factories.py`, `conftest.py`, `helpers.py`, `backend/tests/integration/` (4 files)
+- `backend/alembic/env.py` and all 4 migration revision files (docstrings/comments explaining schema rationale only; DDL unchanged)
+- `.cursor/rules/01-engineering-principles.mdc` — Code Quality section now references the new docstring rule
+
+**Decisions:**
+- Treated as a pure documentation pass — explicitly excluded logic, signature, schema, DDL, and test-assertion changes to avoid any regression risk across ~95 files.
+- Delegated execution to 8 parallel subagents partitioned by architectural layer (core, models, repositories, services, providers, api/schemas/middleware/unit_of_work/main, tests/unit/providers, remaining tests+alembic) so each diff stayed reviewable and scoped.
+- Each subagent independently ran `ReadLints` and re-ran its relevant test slice before reporting back.
+
+**Verification:** Full non-integration suite re-run after all 8 batches landed: `125 passed, 41 deselected`. No linter errors introduced anywhere.
+
+**Remaining work:** None for this sweep. Going forward, `09-docstring-standards.mdc` applies automatically to all new/edited Python files.
+
+**Next task:** Phase 6.2 — registry persistence / catalog service.
+
+### 2026-07-30 — Phase 6.1 Model Metadata
+
+**Phase:** 6.1
+
+**Objective:** Introduce a registry metadata layer with validated catalog types before wiring providers or persistence.
+
+**Files created:**
+- `backend/src/registry/__init__.py`
+- `backend/src/registry/models.py` — `ProviderType`, `ModelCapability`, `ModelInfo`
+- `backend/src/registry/exceptions.py` — `RegistryError`, `InvalidModelMetadataError`
+- `backend/tests/unit/registry/test_registry_models.py`
+
+**Decisions:**
+- Registry types live in a dedicated package, separate from `providers.base.ModelInfo` (provider API catalog DTO) and `core.enums.ProviderType` (runtime resolution enum).
+- `ModelInfo` is a frozen dataclass; capabilities stored as `frozenset[ModelCapability]`.
+- Required fields validated in `__post_init__`: non-empty `name`/`display_name`, valid `provider`, string `description`, frozenset capabilities, positive optional token limits.
+- No provider, route, or ORM changes in this milestone.
+
+**Remaining work:** Registry service, DB sync, provider `list_models()` → registry mapping, routing by capability.
+
+**Follow-up (same day):** Expanded every class, method, and validation helper in `backend/src/registry/` (`models.py`, `exceptions.py`, `__init__.py`) and `backend/tests/unit/registry/test_registry_models.py` into detailed multi-line docstrings — purpose, args/returns/raises, and runnable examples — per user request for deeper inline documentation. No behavior changed; verified imports and validation still pass.
+
+**Next task:** Phase 6.2 — registry persistence / catalog service.
 
 ### 2026-07-27 — Phase 5.8 Dockerization
 
