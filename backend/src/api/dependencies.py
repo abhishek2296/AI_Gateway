@@ -25,8 +25,9 @@ from fastapi import Depends, Request
 
 from src.providers.factory import ProviderFactory
 from src.providers.registry import get_registry
-from src.registry.base import BaseModelRegistry
+from src.registry.base import CatalogModelRegistry
 from src.registry.memory import MemoryModelRegistry
+from src.registry.read_only import ReadOnlyModelRegistry, ReadOnlyModelRegistryView
 from src.services.ai_service import AIService, create_ai_service
 from src.services.base_llm import BaseLLMService
 from src.services.chat_service import ChatService
@@ -42,9 +43,14 @@ def set_ai_service_instance(service: AIService) -> None:
     _ai_service_instance = service
 
 
-def get_model_registry(request: Request) -> BaseModelRegistry:
-    """Return the catalog registry stored on ``app.state`` during startup."""
+def get_model_registry(request: Request) -> CatalogModelRegistry:
+    """Return the writable catalog registry stored on ``app.state`` (loader/admin)."""
     return request.app.state.model_registry
+
+
+def get_readonly_model_registry(request: Request) -> ReadOnlyModelRegistry:
+    """Return the read-only registry view used during normal HTTP handling."""
+    return request.app.state.readonly_model_registry
 
 
 def get_model_registry_service(request: Request) -> ModelRegistryService:
@@ -86,7 +92,7 @@ def get_ai_service() -> AIService:
     if _ai_service_instance is not None:
         return _ai_service_instance
     fallback_registry = MemoryModelRegistry()
-    fallback_service = ModelRegistryService(fallback_registry)
+    fallback_service = ModelRegistryService(ReadOnlyModelRegistryView(fallback_registry))
     return create_ai_service(
         factory=get_provider_factory(),
         model_registry_service=fallback_service,

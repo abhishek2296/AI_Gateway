@@ -44,7 +44,7 @@ class RegistryModelResponse(BaseModel):
         """Build an API DTO from a registry catalog entry."""
         return cls(
             name=model.name,
-            provider=ProviderType(model.provider.value),
+            provider=model.provider,
             display_name=model.display_name,
             description=model.description,
             capabilities=sorted(model.capabilities, key=lambda c: c.value),
@@ -70,3 +70,27 @@ class ModelListResponse(BaseModel):
     total: int
     offset: int = 0
     limit: int | None = None
+
+
+class RegistryHealthResponse(BaseModel):
+    """
+    Health overview for ``GET /models/health``.
+
+    Attributes:
+        status: Coarse registry state — ``healthy``, ``degraded``, or
+            ``unhealthy``.
+        registered_models: Total catalog entries.
+        enabled_models: Routable models.
+        disabled_models: Present but disabled entries.
+        providers: Distinct provider families with at least one model.
+        default_model: Resolved default chat model name, if any.
+        last_refresh_time: ISO-8601 UTC timestamp of the last catalog refresh.
+    """
+
+    status: str
+    registered_models: int
+    enabled_models: int
+    disabled_models: int
+    providers: int
+    default_model: str | None = None
+    last_refresh_time: str | None = None

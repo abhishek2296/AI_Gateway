@@ -189,6 +189,13 @@ Next: **Phase 7 — Routing Engine**
 
 - Unit/API tests; ADR-004; architecture docs updated
 
+**6.9 — Final Hardening** ✅
+
+- Unified `ProviderType` in `src/core/enums.py` (single source of truth)
+- `RegistryMetrics` computed from live catalog state; `GET /models/health`
+- `ModelInfo.supports()` used in filters; optional Phase 7 routing metadata
+- `ReadOnlyModelRegistry` runtime surface; `ModelCatalogLoader` retains controlled writes
+
 **Future (post–Phase 6):**
 
 - Redis and database-backed registry implementations

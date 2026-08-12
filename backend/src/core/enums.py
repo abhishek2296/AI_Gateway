@@ -14,14 +14,13 @@ from enum import Enum
 
 class ProviderType(str, Enum):
     """
-    Runtime identifier for a known LLM backend family.
+    Single source of truth for a known LLM backend family.
 
     Subclassing ``str`` means members compare equal to their plain string
-    value and serialize directly to JSON (e.g. in ``/health`` or ``/chat``
-    responses) without any custom encoder. This mirrors
-    ``src/registry/models.py``'s ``ProviderType`` but lives in ``core/`` so
-    infrastructure code (config, services, schemas) can reference it without
-    depending on the registry package.
+    value and serialize directly to JSON (e.g. in ``/health``, ``/chat``, or
+    ``/models`` responses) without any custom encoder. Every layer — registry,
+    providers, services, schemas, and API routes — imports this enum from
+    ``src.core.enums`` so provider identity never drifts between modules.
 
     Members:
         OLLAMA: Local/self-hosted models served via Ollama.

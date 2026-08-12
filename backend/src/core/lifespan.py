@@ -20,6 +20,7 @@ from src.api.dependencies import set_ai_service_instance
 from src.providers.factory import ProviderFactory
 from src.providers.registry import get_registry
 from src.registry.memory import MemoryModelRegistry
+from src.registry.read_only import ReadOnlyModelRegistryView
 from src.services.ai_service import create_ai_service
 from src.services.model_catalog_loader import create_model_catalog_loader
 from src.services.model_registry_service import ModelRegistryService
@@ -88,8 +89,10 @@ async def lifespan(app: FastAPI):
         factory=ProviderFactory(get_registry()),
     )
     await catalog_loader.load()
-    model_registry_service = ModelRegistryService(model_registry)
+    readonly_registry = ReadOnlyModelRegistryView(model_registry)
+    model_registry_service = ModelRegistryService(readonly_registry)
     app.state.model_registry = model_registry
+    app.state.readonly_model_registry = readonly_registry
     app.state.model_registry_service = model_registry_service
 
     ai_service = create_ai_service(

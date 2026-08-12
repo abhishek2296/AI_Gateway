@@ -37,7 +37,9 @@ from src.providers.exceptions import ModelNotFoundError, ProviderUnavailableErro
 from src.providers.factory import ProviderFactory
 from src.providers.registry import ProviderRegistry
 from src.registry.memory import MemoryModelRegistry
-from src.registry.models import ModelCapability, ModelInfo, ProviderType as RegistryProviderType
+from src.core.enums import ProviderType
+from src.registry.models import ModelCapability, ModelInfo
+from src.registry.read_only import ReadOnlyModelRegistryView
 from src.services.ai_service import AIService
 from src.services.model_registry_service import ModelRegistryService
 from src.services.resolution_types import ResolutionSource, ResolvedConfiguration
@@ -215,7 +217,7 @@ async def _seed_registry(
     registry: MemoryModelRegistry,
     *,
     name: str = "qwen3:8b",
-    provider: RegistryProviderType = RegistryProviderType.OLLAMA,
+    provider: ProviderType = ProviderType.OLLAMA,
     is_default: bool = True,
 ) -> None:
     await registry.register(
@@ -233,18 +235,18 @@ async def _seed_registry(
 async def _make_model_registry_service_async(
     *,
     name: str = "qwen3:8b",
-    provider: RegistryProviderType = RegistryProviderType.OLLAMA,
+    provider: ProviderType = ProviderType.OLLAMA,
     is_default: bool = True,
 ) -> ModelRegistryService:
     registry = MemoryModelRegistry()
     await _seed_registry(registry, name=name, provider=provider, is_default=is_default)
-    return ModelRegistryService(registry, settings=_settings())
+    return ModelRegistryService(ReadOnlyModelRegistryView(registry), settings=_settings())
 
 
 def _make_model_registry_service(
     *,
     name: str = "qwen3:8b",
-    provider: RegistryProviderType = RegistryProviderType.OLLAMA,
+    provider: ProviderType = ProviderType.OLLAMA,
     is_default: bool = True,
 ) -> ModelRegistryService:
     import asyncio
@@ -255,7 +257,7 @@ def _make_model_registry_service(
         await _seed_registry(registry, name=name, provider=provider, is_default=is_default)
 
     asyncio.run(seed())
-    return ModelRegistryService(registry, settings=_settings())
+    return ModelRegistryService(ReadOnlyModelRegistryView(registry), settings=_settings())
 
 
 @pytest.fixture
@@ -365,7 +367,7 @@ async def test_chat_honors_explicit_provider_and_model(
     await registry.register(
         ModelInfo(
             name="custom-model",
-            provider=RegistryProviderType.OLLAMA,
+            provider=ProviderType.OLLAMA,
             display_name="custom-model",
             description="override",
             capabilities=frozenset({ModelCapability.CHAT}),

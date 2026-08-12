@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from src.registry.models import ProviderType
+    from src.core.enums import ProviderType
 
 
 class RegistryError(Exception):

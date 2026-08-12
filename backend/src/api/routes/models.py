@@ -19,7 +19,7 @@ from src.core.exceptions import (
 from src.registry.exceptions import AmbiguousModelError, ModelDisabledError, ModelNotFoundError
 from src.registry.models import ModelCapability
 from src.schemas.common import APIResponse
-from src.schemas.models import ModelListResponse, RegistryModelResponse
+from src.schemas.models import ModelListResponse, RegistryHealthResponse, RegistryModelResponse
 from src.services.model_registry_service import ModelRegistryService
 
 router = APIRouter(prefix="/models", tags=["models"])
@@ -33,6 +33,20 @@ def _map_registry_error(exc: Exception) -> None:
     if isinstance(exc, AmbiguousModelError):
         raise AmbiguousModelHTTPException(str(exc)) from exc
     raise exc
+
+
+@router.get("/health", response_model=APIResponse[RegistryHealthResponse])
+async def get_models_health(
+    service: ModelRegistryService = Depends(get_model_registry_service),
+) -> APIResponse[RegistryHealthResponse]:
+    """
+    Return a simple overview of model registry health.
+
+    Counts and freshness are computed from the live catalog — not duplicated
+    counters — so values stay accurate after startup refresh.
+    """
+    health = await service.get_registry_health()
+    return APIResponse(data=RegistryHealthResponse(**health))
 
 
 @router.get("", response_model=APIResponse[ModelListResponse])
@@ -53,7 +67,7 @@ async def list_models(
     ``offset``/``limit`` slicing so clients can paginate without extra calls.
     """
     models = await service.list_models(
-        provider=_to_registry_provider(provider) if provider else None,
+        provider=provider,
         capability=capability,
         enabled=enabled,
         streaming=streaming,
@@ -83,7 +97,7 @@ async def get_model_by_name(
 ) -> APIResponse[RegistryModelResponse]:
     """Fetch one model by provider and name."""
     try:
-        model = await service.get_model(_to_registry_provider(provider), model_name)
+        model = await service.get_model(provider, model_name)
     except ModelNotFoundError as exc:
         _map_registry_error(exc)
     return APIResponse(data=RegistryModelResponse.from_model_info(model))
@@ -103,9 +117,8 @@ async def list_provider_models(
     service: ModelRegistryService = Depends(get_model_registry_service),
 ) -> APIResponse[ModelListResponse]:
     """List models offered by one provider family."""
-    registry_provider = _to_registry_provider(provider)
     models = await service.list_models(
-        provider=registry_provider,
+        provider=provider,
         enabled=enabled,
         capability=capability,
         streaming=streaming,
@@ -121,9 +134,3 @@ async def list_provider_models(
             limit=limit,
         ),
     )
-
-
-def _to_registry_provider(provider: ProviderType):
-    from src.registry.models import ProviderType as RegistryProviderType
-
-    return RegistryProviderType(provider.value)

@@ -8,12 +8,16 @@ complete subclass satisfies the interface.
 
 from __future__ import annotations
 
+from datetime import UTC, datetime
+
 import pytest
 
+from src.core.enums import ProviderType
 from src.registry.base import BaseModelRegistry
 from src.registry.exceptions import ModelAlreadyRegisteredError, ModelNotFoundError
 from src.registry.filters import ModelListFilters
-from src.registry.models import ModelCapability, ModelInfo, ProviderType
+from src.registry.metrics import RegistryMetrics
+from src.registry.models import ModelCapability, ModelInfo
 
 
 class _StubModelRegistry(BaseModelRegistry):
@@ -21,6 +25,23 @@ class _StubModelRegistry(BaseModelRegistry):
 
     def __init__(self) -> None:
         self._models: dict[tuple[ProviderType, str], ModelInfo] = {}
+        self._last_refresh_time: datetime | None = None
+
+    def record_refresh(self, refreshed_at: datetime) -> None:
+        self._last_refresh_time = refreshed_at
+
+    async def metrics(self, *, default_model: str | None = None) -> RegistryMetrics:
+        all_models = tuple(self._models.values())
+        registered = len(all_models)
+        enabled = sum(1 for model in all_models if model.enabled)
+        return RegistryMetrics(
+            registered_models=registered,
+            enabled_models=enabled,
+            disabled_models=registered - enabled,
+            providers_count=len(dict.fromkeys(model.provider for model in all_models)),
+            default_model=default_model,
+            last_refresh_time=self._last_refresh_time,
+        )
 
     async def register(self, model: ModelInfo) -> None:
         key = (model.provider, model.name)

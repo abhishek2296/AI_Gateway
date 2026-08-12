@@ -237,23 +237,33 @@ Catalog metadata, storage, APIs, and chat integration live in `backend/src/regis
 ```
 backend/src/registry/
 ├── __init__.py
-├── base.py          # BaseModelRegistry ABC (filterable list)
+├── base.py          # CatalogModelRegistry (writable) + BaseModelRegistry alias
+├── read_only.py     # ReadOnlyModelRegistry + runtime view wrapper
+├── metrics.py       # RegistryMetrics (computed from live catalog state)
 ├── memory.py        # MemoryModelRegistry (default backend)
-├── filters.py       # ModelListFilters
+├── filters.py       # ModelListFilters (uses ModelInfo.supports())
 ├── mappers.py       # provider DTO / ORM → registry ModelInfo
-├── models.py
+├── models.py        # ModelCapability, ModelInfo (+ optional Phase 7 routing fields)
 └── exceptions.py
 
 backend/src/services/
-├── model_catalog_loader.py   # startup population
-└── model_registry_service.py # runtime resolution + listing
+├── model_catalog_loader.py   # startup population (controlled writes)
+└── model_registry_service.py # runtime resolution + listing (read-only)
 ```
 
-**Startup flow:** `lifespan` → `ModelCatalogLoader.load()` → provider `list_models()` → DB overlay → settings default seed → `app.state.model_registry`.
+**ProviderType:** Single definition in `src/core/enums.py` — imported by registry, schemas, services, and routes (no duplicate enums).
+
+**Startup flow:** `lifespan` → `ModelCatalogLoader.load()` (clear/register/refresh on writable registry) → `record_refresh()` → `ReadOnlyModelRegistryView` → `ModelRegistryService`.
+
+**Runtime flow:** Normal HTTP/chat code receives `ReadOnlyModelRegistry` only — no public register/unregister/clear APIs. Future authenticated admin refresh will use `CatalogModelRegistry` on `app.state.model_registry`.
 
 **Chat flow:** `POST /chat` → `ModelRegistryService.resolve_for_chat()` → validate enabled → `ProviderResolutionCoordinator` (connection config) → `BaseProvider.chat()`.
 
-**HTTP catalog:** `GET /models`, `GET /models/{name}?provider=`, `GET /providers/{provider}/models`.
+**HTTP catalog:** `GET /models`, `GET /models/health`, `GET /models/{name}?provider=`, `GET /providers/{provider}/models`.
+
+**Metrics:** `RegistryMetrics` counts (`registered_models`, `enabled_models`, `disabled_models`, `providers_count`, `default_model`, `last_refresh_time`) are derived from registry contents on each request — not stored counters.
+
+**Phase 7 prep:** Optional `ModelInfo` routing fields (`priority`, `cost_per_*`, `latency_score`, `quality_score`, `tags`) are validated but not used for routing yet.
 
 See [ADR-004](architecture/ADR-004-model-registry.md).
 

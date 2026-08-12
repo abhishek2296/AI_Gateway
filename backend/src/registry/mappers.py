@@ -13,7 +13,8 @@ from dataclasses import replace
 from src.models.ai_model import AIModel
 from src.models.provider import Provider
 from src.providers.base import ModelInfo as ProviderModelInfo
-from src.registry.models import ModelCapability, ModelInfo, ProviderType
+from src.core.enums import ProviderType
+from src.registry.models import ModelCapability, ModelInfo
 
 
 def provider_type_from_name(provider_name: str) -> ProviderType:
@@ -153,4 +154,18 @@ def merge_registry_model(base: ModelInfo, overlay: ModelInfo) -> ModelInfo:
         max_output_tokens=overlay.max_output_tokens or base.max_output_tokens,
         enabled=overlay.enabled,
         metadata=merged_metadata,
+        priority=overlay.priority if overlay.priority is not None else base.priority,
+        cost_per_input_token=(
+            overlay.cost_per_input_token
+            if overlay.cost_per_input_token is not None
+            else base.cost_per_input_token
+        ),
+        cost_per_output_token=(
+            overlay.cost_per_output_token
+            if overlay.cost_per_output_token is not None
+            else base.cost_per_output_token
+        ),
+        latency_score=overlay.latency_score if overlay.latency_score is not None else base.latency_score,
+        quality_score=overlay.quality_score if overlay.quality_score is not None else base.quality_score,
+        tags=base.tags | overlay.tags,
     )

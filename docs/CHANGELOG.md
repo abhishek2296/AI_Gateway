@@ -10,7 +10,8 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
-- `backend/src/registry/` — Phase 6.1 model metadata layer (`ProviderType`, `ModelCapability`, `ModelInfo`, validation exceptions)
+- Phase 6.9 final hardening: unified `ProviderType` (`src/core/enums.py` only), `RegistryMetrics`, `GET /models/health`, `ReadOnlyModelRegistry` runtime view, optional `ModelInfo` routing metadata (`priority`, costs, scores, `tags`)
+- `backend/src/registry/metrics.py`, `read_only.py` — computed metrics and read-only catalog surface
 - `backend/src/registry/base.py` — Phase 6.2 abstract `BaseModelRegistry` async storage contract
 - `backend/src/registry/memory.py` — Phase 6.3 thread-safe in-memory registry
 - `backend/src/registry/filters.py`, `mappers.py` — filtering and provider/ORM mapping

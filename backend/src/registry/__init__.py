@@ -6,7 +6,8 @@ Typical import::
     from src.registry import BaseModelRegistry, MemoryModelRegistry, ModelInfo, ProviderType
 """
 
-from src.registry.base import BaseModelRegistry
+from src.core.enums import ProviderType
+from src.registry.base import BaseModelRegistry, CatalogModelRegistry
 from src.registry.exceptions import (
     AmbiguousModelError,
     InvalidModelMetadataError,
@@ -17,11 +18,14 @@ from src.registry.exceptions import (
 )
 from src.registry.filters import ModelListFilters
 from src.registry.memory import MemoryModelRegistry
-from src.registry.models import ModelCapability, ModelInfo, ProviderType
+from src.registry.metrics import RegistryMetrics
+from src.registry.models import ModelCapability, ModelInfo
+from src.registry.read_only import ReadOnlyModelRegistry, ReadOnlyModelRegistryView
 
 __all__ = [
     "AmbiguousModelError",
     "BaseModelRegistry",
+    "CatalogModelRegistry",
     "InvalidModelMetadataError",
     "MemoryModelRegistry",
     "ModelAlreadyRegisteredError",
@@ -31,5 +35,8 @@ __all__ = [
     "ModelListFilters",
     "ModelNotFoundError",
     "ProviderType",
+    "ReadOnlyModelRegistry",
+    "ReadOnlyModelRegistryView",
     "RegistryError",
+    "RegistryMetrics",
 ]

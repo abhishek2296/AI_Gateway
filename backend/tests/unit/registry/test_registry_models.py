@@ -10,8 +10,9 @@ from __future__ import annotations
 
 import pytest
 
+from src.core.enums import ProviderType
 from src.registry.exceptions import InvalidModelMetadataError
-from src.registry.models import ModelCapability, ModelInfo, ProviderType
+from src.registry.models import ModelCapability, ModelInfo
 
 
 def test_model_info_accepts_valid_metadata() -> None:

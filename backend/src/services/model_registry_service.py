@@ -1,5 +1,5 @@
 """
-Runtime façade over :class:`~src.registry.base.BaseModelRegistry`.
+Runtime façade over :class:`~src.registry.read_only.ReadOnlyModelRegistry`.
 
 Routes, chat, and catalog sync jobs depend on this service rather than the
 raw registry so validation rules (enabled models, ambiguous names, defaults)
@@ -11,13 +11,15 @@ from __future__ import annotations
 import logging
 
 from src.core.config import Settings, get_settings
-from src.registry.base import BaseModelRegistry
+from src.core.enums import ProviderType
 from src.registry.exceptions import (
     AmbiguousModelError,
     ModelDisabledError,
     ModelNotFoundError,
 )
-from src.registry.models import ModelCapability, ModelInfo, ProviderType
+from src.registry.metrics import RegistryMetrics
+from src.registry.models import ModelCapability, ModelInfo
+from src.registry.read_only import ReadOnlyModelRegistry
 
 logger = logging.getLogger(__name__)
 
@@ -26,21 +28,21 @@ class ModelRegistryService:
     """
     High-level catalog operations for HTTP routes and ``AIService``.
 
-    Wraps a :class:`BaseModelRegistry` backend with chat-specific resolution
+    Wraps a :class:`ReadOnlyModelRegistry` backend with chat-specific resolution
     and filter forwarding so callers do not re-implement default-model logic.
     """
 
     def __init__(
         self,
-        registry: BaseModelRegistry,
+        registry: ReadOnlyModelRegistry,
         settings: Settings | None = None,
     ) -> None:
         self._registry = registry
         self._settings = settings or get_settings()
 
     @property
-    def registry(self) -> BaseModelRegistry:
-        """Underlying registry implementation (memory, Redis, database, …)."""
+    def registry(self) -> ReadOnlyModelRegistry:
+        """Underlying read-only registry view (memory, Redis, database, …)."""
         return self._registry
 
     async def get_model(self, provider: ProviderType, name: str) -> ModelInfo:
@@ -63,6 +65,62 @@ class ModelRegistryService:
             streaming=streaming,
         )
         return tuple(result)
+
+    async def get_metrics(self) -> RegistryMetrics:
+        """
+        Return catalog statistics derived from the live registry state.
+
+        The default model name is resolved using the same rules as chat so
+        health responses match runtime behavior.
+        """
+        default_name = await self._resolve_default_model_name()
+        return await self._registry.metrics(default_model=default_name)
+
+    async def get_registry_health(self) -> dict[str, object]:
+        """
+        Build a simple health overview for ``GET /models/health``.
+
+        Returns:
+            Dictionary with ``status``, model counts, provider count,
+            ``default_model``, and ``last_refresh_time`` (ISO-8601 string or
+            ``null`` when never refreshed).
+
+        Example:
+            >>> health = await service.get_registry_health()
+            >>> health["status"] in {"healthy", "degraded", "unhealthy"}
+            True
+        """
+        metrics = await self.get_metrics()
+        status = self._derive_health_status(metrics)
+
+        return {
+            "status": status,
+            "registered_models": metrics.registered_models,
+            "enabled_models": metrics.enabled_models,
+            "disabled_models": metrics.disabled_models,
+            "providers": metrics.providers_count,
+            "default_model": metrics.default_model,
+            "last_refresh_time": (
+                metrics.last_refresh_time.isoformat()
+                if metrics.last_refresh_time is not None
+                else None
+            ),
+        }
+
+    @staticmethod
+    def _derive_health_status(metrics: RegistryMetrics) -> str:
+        """
+        Map catalog metrics to a coarse health label.
+
+        - ``unhealthy``: empty catalog or no enabled models (chat cannot route).
+        - ``degraded``: models exist but startup refresh timestamp is missing.
+        - ``healthy``: enabled models present and catalog was refreshed at startup.
+        """
+        if metrics.registered_models == 0 or metrics.enabled_models == 0:
+            return "unhealthy"
+        if metrics.last_refresh_time is None:
+            return "degraded"
+        return "healthy"
 
     async def resolve_for_chat(
         self,
@@ -110,6 +168,14 @@ class ModelRegistryService:
             selected.enabled,
         )
         return selected
+
+    async def _resolve_default_model_name(self) -> str | None:
+        """Return the default model name without raising when the catalog is empty."""
+        try:
+            resolved = await self._resolve_default_model(None)
+        except ModelNotFoundError:
+            return None
+        return resolved.name
 
     async def _resolve_explicit_model(
         self,

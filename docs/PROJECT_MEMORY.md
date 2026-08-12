@@ -81,6 +81,25 @@ backend/
 
 ## Current Work
 
+**Phase 6 — Model Registry** (6.1–6.9 complete)
+
+### 2026-08-12 — Phase 6.9 Model Registry Final Hardening
+
+**Objective:** Consolidate Phase 6 before Phase 7 routing.
+
+**Changes:**
+- Unified `ProviderType` — single enum in `src/core/enums.py`; removed duplicate from `registry/models.py`
+- `RegistryMetrics` + `GET /models/health` — counts derived from live catalog; timezone-aware `last_refresh_time`
+- `ModelInfo.supports()` already present; filters use it; routing metadata fields added (optional, Phase 7 prep)
+- `ReadOnlyModelRegistry` / `ReadOnlyModelRegistryView` for runtime; `CatalogModelRegistry` for loader writes
+- Tests: `test_registry_phase6_final.py`, `test_registry_routing_metadata.py`; 160 non-integration tests pass
+
+**Files:** `registry/metrics.py`, `registry/read_only.py`, `registry/base.py`, `registry/memory.py`, `registry/models.py`, `services/model_registry_service.py`, `services/model_catalog_loader.py`, `api/routes/models.py`, `schemas/models.py`, `core/lifespan.py`, `api/dependencies.py`, ADR-004, ARCHITECTURE.md
+
+**Next task:** Phase 7 — Routing Engine (do not start until explicitly requested).
+
+---
+
 **Phase 6 — Model Registry** (6.1–6.8 complete)
 
 **Next:** Phase 7 — Routing Engine

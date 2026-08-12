@@ -1,5 +1,5 @@
 """
-In-memory implementation of :class:`~src.registry.base.BaseModelRegistry`.
+In-memory implementation of :class:`~src.registry.base.CatalogModelRegistry`.
 
 Used as the default catalog backend for development, tests, and single-process
 deployments. A future Redis or database subclass can replace it without
@@ -10,11 +10,14 @@ from __future__ import annotations
 
 import threading
 from collections.abc import Sequence
+from datetime import datetime
 
-from src.registry.base import BaseModelRegistry
+from src.core.enums import ProviderType
+from src.registry.base import CatalogModelRegistry
 from src.registry.exceptions import ModelAlreadyRegisteredError, ModelNotFoundError
 from src.registry.filters import ModelListFilters
-from src.registry.models import ModelCapability, ModelInfo, ProviderType
+from src.registry.metrics import RegistryMetrics
+from src.registry.models import ModelCapability, ModelInfo
 
 
 def _apply_list_filters(
@@ -42,7 +45,7 @@ def _apply_list_filters(
     return tuple(model for model in models if filters.matches(model))
 
 
-class MemoryModelRegistry(BaseModelRegistry):
+class MemoryModelRegistry(CatalogModelRegistry):
     """
     Thread-safe, process-local model catalog backed by a plain dictionary.
 
@@ -65,6 +68,42 @@ class MemoryModelRegistry(BaseModelRegistry):
         """Create an empty registry."""
         self._models: dict[tuple[ProviderType, str], ModelInfo] = {}
         self._lock = threading.RLock()
+        self._last_refresh_time: datetime | None = None
+
+    def record_refresh(self, refreshed_at: datetime) -> None:
+        """
+        Remember when the catalog was last repopulated.
+
+        Args:
+            refreshed_at: Timezone-aware UTC timestamp from the loader.
+        """
+        with self._lock:
+            self._last_refresh_time = refreshed_at
+
+    async def metrics(self, *, default_model: str | None = None) -> RegistryMetrics:
+        """
+        Compute catalog statistics from the current in-memory contents.
+
+        We count models on each call instead of storing separate counters so
+        numbers stay accurate after ``clear()`` or ``register()`` during refresh.
+        """
+        with self._lock:
+            all_models = tuple(self._models.values())
+            last_refresh = self._last_refresh_time
+
+        registered = len(all_models)
+        enabled = sum(1 for model in all_models if model.enabled)
+        disabled = registered - enabled
+        providers_count = len(dict.fromkeys(model.provider for model in all_models))
+
+        return RegistryMetrics(
+            registered_models=registered,
+            enabled_models=enabled,
+            disabled_models=disabled,
+            providers_count=providers_count,
+            default_model=default_model,
+            last_refresh_time=last_refresh,
+        )
 
     async def register(self, model: ModelInfo) -> None:
         """

@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import logging
 from collections.abc import Callable
+from datetime import UTC, datetime
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
@@ -27,7 +28,7 @@ from src.providers.base import BaseProvider
 from src.providers.exceptions import ProviderError
 from src.providers.factory import ProviderFactory
 from src.providers.registry import ProviderRegistry, get_registry
-from src.registry.base import BaseModelRegistry
+from src.registry.base import CatalogModelRegistry
 from src.registry.exceptions import ModelAlreadyRegisteredError
 from src.registry.mappers import (
     map_orm_model_to_registry,
@@ -35,7 +36,8 @@ from src.registry.mappers import (
     merge_registry_model,
     provider_type_from_name,
 )
-from src.registry.models import ModelCapability, ModelInfo, ProviderType
+from src.core.enums import ProviderType
+from src.registry.models import ModelCapability, ModelInfo
 from src.services.provider_config_resolver import ProviderConfigResolver
 from src.services.resolution_types import ResolutionSource, ResolvedProviderSelection
 
@@ -53,7 +55,7 @@ class ModelCatalogLoader:
     def __init__(
         self,
         *,
-        registry: BaseModelRegistry,
+        registry: CatalogModelRegistry,
         factory: ProviderFactory,
         config_resolver: ProviderConfigResolver,
         session_factory: async_sessionmaker[AsyncSession],
@@ -73,6 +75,8 @@ class ModelCatalogLoader:
         await self._load_from_providers()
         await self._overlay_database_models()
         await self._seed_settings_default()
+        # Record refresh time so health/metrics can report catalog freshness.
+        self._registry.record_refresh(datetime.now(UTC))
 
     async def _load_from_providers(self) -> None:
         for provider_name in self._provider_registry.available():
@@ -165,7 +169,7 @@ class ModelCatalogLoader:
 
 
 def create_model_catalog_loader(
-    registry: BaseModelRegistry,
+    registry: CatalogModelRegistry,
     *,
     factory: ProviderFactory | None = None,
     settings: Settings | None = None,

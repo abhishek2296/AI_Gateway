@@ -4,22 +4,30 @@ from __future__ import annotations
 
 import pytest
 
+from src.core.enums import ProviderType
 from src.registry.exceptions import AmbiguousModelError, ModelDisabledError, ModelNotFoundError
 from src.registry.memory import MemoryModelRegistry
-from src.registry.models import ModelCapability, ModelInfo, ProviderType
+from src.registry.models import ModelCapability, ModelInfo
+from src.registry.read_only import ReadOnlyModelRegistryView
 from src.services.model_registry_service import ModelRegistryService
 
 
-async def _seed(service: ModelRegistryService, *models: ModelInfo) -> None:
+async def _seed(registry: MemoryModelRegistry, *models: ModelInfo) -> None:
     for model in models:
-        await service.registry.register(model)
+        await registry.register(model)
+
+
+def _service_with(*models: ModelInfo) -> tuple[ModelRegistryService, MemoryModelRegistry]:
+    registry = MemoryModelRegistry()
+    service = ModelRegistryService(ReadOnlyModelRegistryView(registry))
+    return service, registry
 
 
 @pytest.mark.asyncio
 async def test_resolve_default_model() -> None:
-    service = ModelRegistryService(MemoryModelRegistry())
+    service, registry = _service_with()
     await _seed(
-        service,
+        registry,
         ModelInfo(
             name="qwen3:8b",
             provider=ProviderType.OLLAMA,
@@ -35,9 +43,9 @@ async def test_resolve_default_model() -> None:
 
 @pytest.mark.asyncio
 async def test_resolve_disabled_raises() -> None:
-    service = ModelRegistryService(MemoryModelRegistry())
+    service, registry = _service_with()
     await _seed(
-        service,
+        registry,
         ModelInfo(
             name="disabled-model",
             provider=ProviderType.OPENAI,
@@ -52,21 +60,21 @@ async def test_resolve_disabled_raises() -> None:
 
 
 @pytest.mark.asyncio
-async def test_resolve_ambiguous_name_raises() -> None:
-    service = ModelRegistryService(MemoryModelRegistry())
+async def test_resolve_ambiguous_without_provider() -> None:
+    service, registry = _service_with()
     await _seed(
-        service,
+        registry,
         ModelInfo(
             name="shared-name",
             provider=ProviderType.OPENAI,
-            display_name="A",
+            display_name="OpenAI",
             description="",
             capabilities=frozenset({ModelCapability.CHAT}),
         ),
         ModelInfo(
             name="shared-name",
             provider=ProviderType.OLLAMA,
-            display_name="B",
+            display_name="Ollama",
             description="",
             capabilities=frozenset({ModelCapability.CHAT}),
         ),

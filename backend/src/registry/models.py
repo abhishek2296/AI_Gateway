@@ -4,7 +4,6 @@ Model registry metadata types and validation.
 This module defines the vocabulary used to describe an LLM "model" in the
 gateway's catalog:
 
-- ``ProviderType``     — which vendor/backend a model belongs to.
 - ``ModelCapability``  — which features a model supports (chat, vision, ...).
 - ``ModelInfo``        — an immutable, validated record combining the above
                           with human-readable metadata (name, limits, etc.).
@@ -21,36 +20,8 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any
 
+from src.core.enums import ProviderType
 from src.registry.exceptions import InvalidModelMetadataError
-
-
-class ProviderType(str, Enum):
-    """
-    Known LLM backend family that a catalog entry (``ModelInfo``) belongs to.
-
-    This is a ``str`` subclass, so members compare equal to their plain string
-    value and serialize cleanly to JSON (e.g. in API responses or logs)
-    without any extra conversion step.
-
-    Members:
-        OLLAMA: Local/self-hosted models served via Ollama.
-        OPENAI: Models served by OpenAI's API (e.g. gpt-4o).
-        ANTHROPIC: Models served by Anthropic's API (e.g. claude-3-5-sonnet).
-        GEMINI: Models served by Google's Gemini API.
-
-    Example:
-        >>> ProviderType.OPENAI == "openai"
-        True
-        >>> ProviderType.OPENAI.value
-        'openai'
-        >>> ProviderType("anthropic")  # parse from a raw string
-        <ProviderType.ANTHROPIC: 'anthropic'>
-    """
-
-    OLLAMA = "ollama"
-    OPENAI = "openai"
-    ANTHROPIC = "anthropic"
-    GEMINI = "gemini"
 
 
 class ModelCapability(str, Enum):
@@ -190,6 +161,94 @@ def _validate_positive_int(value: int | None, field_name: str) -> None:
             field=field_name,
         )
 
+def _validate_score(value: int | None, field_name: str, *, min_value: int = 1, max_value: int = 10) -> None:
+    """
+    Validate optional routing score fields (latency, quality, etc.).
+
+    Scores are integers on a fixed scale so Phase 7 routing can compare models
+    without normalizing arbitrary floats.
+    """
+    if value is None:
+        return
+    if not isinstance(value, int) or isinstance(value, bool):
+        raise InvalidModelMetadataError(
+            f"{field_name} must be an integer.",
+            field=field_name,
+        )
+    if value < min_value or value > max_value:
+        raise InvalidModelMetadataError(
+            f"{field_name} must be between {min_value} and {max_value}.",
+            field=field_name,
+        )
+
+
+def _validate_non_negative_float(value: float | None, field_name: str) -> None:
+    """
+    Validate optional per-token cost fields.
+
+    Values are USD **per single token** (not per 1k tokens) so future cost
+    routing can multiply directly by token counts from usage records.
+    """
+    if value is None:
+        return
+    if not isinstance(value, (int, float)) or isinstance(value, bool):
+        raise InvalidModelMetadataError(
+            f"{field_name} must be a number.",
+            field=field_name,
+        )
+    if float(value) < 0:
+        raise InvalidModelMetadataError(
+            f"{field_name} must be zero or greater.",
+            field=field_name,
+        )
+
+
+def _validate_non_negative_int(value: int | None, field_name: str) -> None:
+    """Validate optional routing priority (0 = lowest preference)."""
+    if value is None:
+        return
+    if not isinstance(value, int) or isinstance(value, bool):
+        raise InvalidModelMetadataError(
+            f"{field_name} must be an integer.",
+            field=field_name,
+        )
+    if value < 0:
+        raise InvalidModelMetadataError(
+            f"{field_name} must be zero or greater.",
+            field=field_name,
+        )
+
+
+def _validate_tags(tags: frozenset[str] | None) -> frozenset[str]:
+    """
+    Normalize routing tags into a deduplicated frozenset of non-empty strings.
+
+    Tags are optional labels (e.g. ``"fast"``, ``"cheap"``) for future routing
+    rules — they are not used by the gateway in Phase 6.
+    """
+    if tags is None:
+        return frozenset()
+    if not isinstance(tags, frozenset):
+        raise InvalidModelMetadataError(
+            "tags must be a frozenset of strings.",
+            field="tags",
+        )
+    normalized: set[str] = set()
+    for tag in tags:
+        if not isinstance(tag, str):
+            raise InvalidModelMetadataError(
+                "tags must contain strings only.",
+                field="tags",
+            )
+        cleaned = tag.strip()
+        if not cleaned:
+            raise InvalidModelMetadataError(
+                "tags must not contain empty strings.",
+                field="tags",
+            )
+        normalized.add(cleaned)
+    return frozenset(normalized)
+
 
 @dataclass(frozen=True, slots=True)
 class ModelInfo:
@@ -234,11 +293,17 @@ class ModelInfo:
             for a deprecated or temporarily disabled model without deleting
             it from the catalog.
         metadata: A free-form mapping for anything not covered by the typed
-            fields above — e.g. ``{"family": "gpt-4", "cost_per_1k": 0.005}``.
-            Defaults to an empty ``dict`` (never ``None`` after construction).
-            Stored internally as a plain ``dict`` copy so mutating the
-            original mapping you passed in afterwards does not affect this
-            instance.
+            fields above — e.g. ``{"family": "gpt-4"}``. Defaults to an empty
+            ``dict`` (never ``None`` after construction).
+        priority: Optional routing preference (higher = preferred in Phase 7).
+            ``None`` means "no explicit priority yet".
+        cost_per_input_token: Optional USD cost for one input token. ``None``
+            when pricing is unknown. Not used for billing in Phase 6.
+        cost_per_output_token: Optional USD cost for one output token.
+        latency_score: Optional 1–10 latency rating for future routing.
+        quality_score: Optional 1–10 quality rating for future routing.
+        tags: Optional routing labels (e.g. ``{"fast", "cheap"}``). Empty when
+            unset. Not used for routing decisions in Phase 6.
 
     Example:
         >>> model = ModelInfo(
@@ -282,6 +347,12 @@ class ModelInfo:
     max_output_tokens: int | None = None
     enabled: bool = True
     metadata: Mapping[str, Any] = field(default_factory=dict)
+    priority: int | None = None
+    cost_per_input_token: float | None = None
+    cost_per_output_token: float | None = None
+    latency_score: int | None = None
+    quality_score: int | None = None
+    tags: frozenset[str] = field(default_factory=frozenset)
 
     def __post_init__(self) -> None:
         """
@@ -305,9 +376,8 @@ class ModelInfo:
             8. ``enabled``       — must be a ``bool``.
             9. ``metadata``      — ``None`` becomes ``{}``; otherwise must be
                                     a ``Mapping`` and is copied into a plain
-                                    ``dict`` so external mutation of the
-                                    original object can't leak into this
-                                    "immutable" instance.
+                                    ``dict``.
+           10. Routing fields    — optional ``priority``, costs, scores, ``tags``.
 
         Raises:
             InvalidModelMetadataError: On the first field that fails
@@ -385,6 +455,13 @@ class ModelInfo:
             # Copy into a plain dict so this "frozen" ModelInfo can't be
             # mutated indirectly later by changing the caller's original dict.
             object.__setattr__(self, "metadata", dict(self.metadata))
+
+        _validate_non_negative_int(self.priority, "priority")
+        _validate_non_negative_float(self.cost_per_input_token, "cost_per_input_token")
+        _validate_non_negative_float(self.cost_per_output_token, "cost_per_output_token")
+        _validate_score(self.latency_score, "latency_score")
+        _validate_score(self.quality_score, "quality_score")
+        object.__setattr__(self, "tags", _validate_tags(self.tags))
 
     def supports(self, capability: ModelCapability) -> bool:
         """

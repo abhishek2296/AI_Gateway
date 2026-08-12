@@ -10,7 +10,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from src.registry.models import ModelCapability, ModelInfo, ProviderType
+from src.core.enums import ProviderType
+from src.registry.models import ModelCapability, ModelInfo
 
 
 @dataclass(frozen=True, slots=True)
